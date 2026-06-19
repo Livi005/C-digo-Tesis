@@ -1,0 +1,1854 @@
+#+TITLE: VRP solver environment
+#+AUTHOR: Fernando Rodriguez Flores
+#+AUTHOR: Sherlhy León López
+#+DATE 2019-02-14
+#+TODO: TODO BROKEN | DONE
+
+* Description
+
+  In this file we are going to add function, classes and methods to deal with creation of feasible routes.  It should be used with Sherlhy's work for the automatic creation of feasible routes
+
+  The source blocks in this file should be tangled to "src/vrp-initial-routes.lisp".
+
+
+* Adding the package to the file
+  #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-initial-routes.lisp
+  (in-package :vrp)
+  #+END_SRC
+
+
+
+* Requirements (in spanish)
+** para el CVRP [8/10]
+   1. [X] de los clientes necesito: 
+      - [X] demanda y
+      - [X] distancia entre ellos
+   2. [X] del problema:
+      - [X] la lista de clientes
+      - [X] la capacidad
+   3. [X] crear ruta vacía (con una capacidad)
+   4. [X] (smaller-than (x y) (...))
+   5. [X] (decrement (x y) (...))
+   6. [X] seleccionar cliente que cumpla restricciones
+       ---->  (select-client (c list-clients conditions) (...))
+   7. [X] insertar en una ruta (siguiendo condiciones)
+       --->  (insert-client (c list-clients conditions) (...))
+      - [X] insertar en una ruta en una posición dada.
+      - [X] implementar los filtros para la inserción
+      - [X] insertar en una ruta en una posición aleatoria
+   8. [X] eliminar cliente de una lista de clientes
+       ---> (remove-client  (c list-clients) (...))
+   9. [ ] Agregar una ruta al conjunto de rutas a devolver
+        (add-route  current-route current-solution)
+   10. [ ] (create-new-route current-route)
+       ---> seria definir
+       current-route como una nueva lista vacia
+
+
+
+* Filtering mechanisms
+** filters for selection
+*** description
+
+    A selection filter is a function that receives a list and returns another list with the elements of the original list that satisfy it.  For example, the filters =is-odd=, and =greater-than-3= could be defined in the following way:
+
+    #+BEGIN_SRC lisp +n -r :results output :exports both 
+    (defun is-odd (list)
+      (loop for element in list
+            if (oddp element) collect element))
+
+    (defun greater-than-3 (list)
+      (loop for element in list
+            if (> element 3) collect element))
+
+    (print (is-odd '(1 2 3 4 5 6 7)))
+    (print (greater-than-3 '(1 2 3 4 5 6 7)))
+    #+END_SRC
+
+    #+RESULTS:
+    : 
+    : (1 3 5 7) 
+    : (4 5 6 7)
+
+    These two macros only receive the list to filter, however, we could have filters with more parameters such as =is-multiple-of= that should also receive an integer.  This filter could be implemented as:
+
+    The filters can be used to narrow the set of candidates for the select random element functions.
+
+    #+BEGIN_SRC lisp +n -r :results output :exports both 
+    (progn
+
+      (defun is-multiple-of (list n) 
+       (loop for element in list
+             if (= 0 (mod element n))
+             collect element))
+  
+      (print (is-multiple-of '(10 20 30 40 50 60) 3)))
+    #+END_SRC
+
+    #+RESULTS:
+    : 
+    : (30 60) 
+
+    However, this could break the signature for the filter-for-selection function.  So, if we want to create a filter that receives more arguments than just the list, we should `curry' the rest of the arguments by creating a closure.  Following this idea, we could have a function =is-multiple-of-filter= that receives a number and returns the filter for that number.  For instance
+
+    #+BEGIN_SRC lisp +n -r :results output :exports both 
+    (progn
+      (defun is-multiple-of (n) 
+
+        (lambda (list)
+          (loop for element in list
+                if (= 0 (mod element n))
+                collect element)))
+
+      (print (funcall (is-multiple-of 4) '(10 20 30 40 50 60))))
+    #+END_SRC
+
+    #+RESULTS:
+    : 
+    : (20 40 60) 
+
+    These filters-for-selection can be used with the function filter-for-selection, that is presented in the next section.
+*** filter-for-selection function 
+**** description
+     The function filter-for-selection receives a list and a list of `selection-filters', and returns a list with the elements that satisfy all filters.  It's behavior is defined as:
+     - If none of the elements satisfy all filters, then it should return nil.
+     - If the set of filters is nil, then we should return the list.
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defun filter-for-selection (list &optional filters)
+       "Returns a list with all the elements in list that satisfy all  filters.  A filter is a function that receives (at least) a list and returns a list with the elements satisfying it."
+       (declare (ignorable filters))
+       (if (null filters)
+           ;; if there are no filters,
+           ;; return the list as it is
+           list
+           ;; else process its elements
+           (let* ((candidates list))
+             (loop for f in filters
+                   while candidates
+                   doing (setf candidates (funcall f candidates)))
+             ;; finally return candidates
+             candidates)))
+    #+END_SRC
+**** tests
+     Let's tests the function =filter-for-selection=. 
+     #+BEGIN_SRC lisp +n -r :results output :exports both.lisp
+     (let* ((list '(1 2 3 4 5 6 7 8 9 10)))
+       (format t "Odd numbers greater than 3 and multiple of 3 from~%  ~a:~%  ~a~%"
+               list
+               (filter-for-selection list 
+                                     (list
+                                      'is-odd
+                                      'greater-than-3
+                                      (is-multiple-of 3)))))
+     #+END_SRC
+
+     #+RESULTS:
+     : Odd numbers greater than 3 and multiple of 3 from
+     :   (1 2 3 4 5 6 7 8 9 10):
+     :   (9)
+*** make-filter-for-selection macro 
+**** description
+     A filter is a function that receives a list of elements and returns another list with the elements that satisfy a certain criterion.
+
+     *A filter definition* is a function that returns a filter as a lambda expression.  In this section we present a macro that will be useful for the creation of filters.
+ 
+     We'll take into accound that many filters have a common structure.  For instance, a filter to select even numbers can be implemented in the following way:
+     #+BEGIN_SRC lisp +n -r :results none :exports code
+     (lambda (list)
+       (loop for element in list
+             if (evenp element) collect element))
+     #+END_SRC
+
+     and a filter to select the numbers greater than 2 could be written as:
+     #+BEGIN_SRC lisp +n -r :results none :exports code
+     (lambda (list)
+       (loop for element in list
+             if (> element 2) collect element))
+     #+END_SRC
+
+     In all the filters sharing this structure, the only thing that will change from one filter to another is the condition inside the =if=.
+
+     In this section we create a macro that receives the name of the filter, some extra parameters and the condition inside the if, and creates a function that returns the filter.
+
+     The invocation for the previous examples would be:
+
+     #+BEGIN_EXAMPLE
+     (make-filter is-even (evenp element))
+     (make-filter greater-than-2 (> element 2))
+     #+END_EXAMPLE
+
+     In some cases, the filter definition may receive some parameters, as in greater-than, where the number could be a parameter.  Here is the code for the macro.  In those cases we could call the macro as:
+
+     #+BEGIN_EXAMPLE
+     (make-filter is-greater-than (n) (>= element n))
+     #+END_EXAMPLE
+
+     To make this as general as possible, the filters is-even and greater-than-2 should be called as:
+
+     #+BEGIN_EXAMPLE
+     (make-filter is-even () (evenp element))
+     (make-filter greater-than-2 () (> element 2))
+     #+END_EXAMPLE
+      
+     The empty list after the name means that this filter does not receive any parameter.
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defmacro make-filter-for-selection
+         (name (&rest args) &rest filter-conditions)
+       ;;{{{ documentation
+       "A selection-filter is a function that receives a list of elements and returns another list with the elements that satisfy a certain criterion.
+
+     A selection-filter definition is a function that returns a filter as a lambda expression.  This macro is useful in the creation of those filters.
+
+     For example, a filter to select even numbers can be implemented as follows:
+
+           (lambda (list)
+             (loop for element in list
+                   if (evenp element) collect element))
+
+     What changes from filter to filter is the condition inside the if.
+
+     This macro receives the name of the filter, some optional parameters and the condition inside the if, and creates a function that returns the filter.
+
+     The invocation for the previous example is:
+           (make-filter is-even () (evenp element))
+
+     There can be more than one `filter-condition', because they all are `anded'.  This means that you can have a filter like the following:
+
+           (make-filter is-even-and-big () (evenp element) (>= element 100))
+
+     that expands into:
+
+           (defun is-even-and-big ()
+             (lambda (list)
+               (loop for element in list
+                     if (and (evenp element)
+                             (>= element 100)) collect element)))
+
+     and can be used as:
+         (filter-for-selection somelist (list (is-even-and-big)))"
+       ;;}}}
+       `(defun ,name ,args
+          (lambda (list)
+            (loop for element in list
+                  if (and ,@filter-conditions)
+                  collect element))))
+     #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((na 4)
+            (nb 11)
+            (list '(1 2 3 4 5 6 7 8 9 10 11 12))
+            (nm 3))
+       (make-filter-for-selection number-between (a b) (<= a element b))
+       (make-filter-for-selection is-even () (evenp element))
+       (make-filter-for-selection multiple-of (n) (= 0 (mod element n)))
+       (format t "Filtering even numbers between ~a and ~a, multiple of ~a from:~%~a~%~a~%"
+               na nb nm list
+               (filter-for-selection list (list
+                                           (number-between na nb)
+                                           (is-even)
+                                           (is-multiple-of nm)))))
+
+     #+END_SRC
+*** Note about another type of selection-filters
+    There can exist some filters that don't complain to the template exploited in the macro =make-filter-for-selection=.  In those cases, the user should write the function that returns the closure.
+** filters for insertion into a route
+*** description
+    An insertion filter is a filter that receives a client, a route, and a set of positions, and returns a list with the positions that satisfy the condition.
+
+    For example, if a filter is "after-all-the-clients-with-even-id", and the route is =(2 3 4 1 6 9 5)=, this filter should return the list =(5 6 7)=.
+
+    The insertion filters receive three arguments: the client that should be inserted, the route, and a list with all feasible candidates, and should return what elements from the position list satisfy the condition.
+
+    For example, if the filter is: =in-an-even-position=, and the list of feasible positions is =(3 6 8 9)=, it should return the list =(6 8)=.
+
+    If the list of feasible candidates is nil, the filter should also return nil.
+
+    Let's create some filters as example.  They are going to be =in-an-even-position= and =after-all-clients-with-even-id=.
+
+**** =in-an-even-position=
+
+      #+BEGIN_SRC lisp +n -r :results none :exports code
+      (defun in-an-even-position (client list candidates)
+        (declare (ignore client list))
+        (loop for i in candidates
+              if (evenp i) collect i))
+      #+END_SRC
+
+      Let's see how it works
+
+      #+BEGIN_SRC lisp +n -r :results output :exports both
+      (print (in-an-even-position 'a (list 1 2 3 1) '(1 3)))
+      (print (in-an-even-position 'a (list 1 2 3 1) '(0 1 2 3)))
+      (print (in-an-even-position t nil '(1 3)))
+      (print (in-an-even-position t nil '(0 4 6 1 2 3)))
+      #+END_SRC
+
+      #+RESULTS:
+      : 
+      : NIL 
+      : (0 2) 
+      : NIL 
+      : (0 4 6 2) 
+**** =after-all-clients-with-even-id=
+     This filter returns all the positions where a client can be inserted in a way that all the clients with an even id are before it.  This filter finds that position and then intersects the results with the candidates arg.
+
+     #+BEGIN_SRC lisp +n -r :results none :exports code
+     (defun after-all-clients-with-even-id (client list candidates)
+       (declare (ignore client))
+       (let* ((max-pos (length list))
+              (max-candidate (loop for i in candidates
+                                   maximizing i))
+              (greater-even-position 0)
+              (feasible-list nil))
+         (loop for element in list
+               for pos from 1
+               do (if (evenp (id element)) (setf greater-even-position pos)))
+
+         (setf feasible-list (loop for i from greater-even-position
+                                         to (min max-pos max-candidate)
+                                   collect i))
+         (intersection feasible-list candidates)))
+     #+END_SRC
+
+     Let's test it:
+
+     #+BEGIN_SRC lisp +n -r :results output :exports both
+     (with-basic-clients (1 2 3 4 5 6)
+        (let* ()
+          (bformat t "Testing filter after-all-clients-with-even-id")
+          (format t "Positions after all clients with even id: ~a~%"
+                  (after-all-clients-with-even-id t
+                                                  (list c1 c2 c4 c6 c3 c5)
+                                                  `(0 1 2 3 4 5 6 7)))
+          (format t "Positions after all clients with even id: ~a~%"
+                  (after-all-clients-with-even-id t
+                                                  (list c1 c2 c4 c6 c3 c6)
+                                                  `(0 1 2 3 4 5 6 7)))))
+     #+END_SRC
+*** function: filter-for-insertion
+**** description
+     The function filter-for-insertion receives
+      - the object that should be inserted,
+      - a list where we want to insert it,
+      - a list with `filters-for-insertion',
+      - and a list with candidates
+         where each element is a position where the client could be inserted.
+
+     and returns
+      - a list with the elements that satisfy all the filters.
+
+     It's extreme behavior is defined as:
+     - If none of the candidates satisfy all filters, then it should return nil.
+     - If the set of filters is nil, then we should return all the candidates the list.
+     - If the set of candidates is nil, then return nil.
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defun filter-for-insertion (element list &optional filters candidates)
+       "This function receives a client, a list, a list with filters and a list of position candidates for insertion.
+     If filter is nil then returt the list of candidates as it is."
+       ;; initialize candidates
+       (cond
+        ((null candidates) nil)
+        ;; if there are not filters return the set of candidates.
+        ((null filters) ;; return candidates
+            candidates)
+        (t
+         (let* ((final-candidates (clone candidates)))
+           (loop for f in filters
+                 while final-candidates
+                 doing (setf final-candidates
+                             (funcall f element list final-candidates)))
+           ;; finally return final-candidates
+           final-candidates))))
+    #+END_SRC
+**** tests
+     In this section we test the filter for insertions.
+***** no filters and no candidates
+     #+BEGIN_SRC lisp +n -r :results output :exports both.lisp
+     (with-basic-clients (1 2 3 4 5 6 7)
+       (let* ()
+         (bformat t "Testing filter-for-insertion without candidates")
+         (format t "filtered candidates: ~a~%"
+                 (filter-for-insertion t `(1 2 3 4 5 6 7) t))
+         (format t "filtered candidates (without candidates): ~a~%"
+                 (filter-for-insertion t `(1 2 3 4 5 6 7)
+                                       (list 'in-an-even-position)))
+         (format t "filtered candidates (after clients with even id): ~a~%"
+                 (filter-for-insertion
+                  t
+                  (list c2 c4 c6 c1 c3 c5 c7)
+                  (list 'after-all-clients-with-even-id)
+                  (numbers-in-range 7)))
+         (format t "filtered candidates (after clients with even id and even pos): ~a~%"
+                 (filter-for-insertion
+                  t
+                  (list c2 c4 c6 c1 c3 c5 c7)
+                  (list 'in-an-even-position
+                        'after-all-clients-with-even-id)
+                  (numbers-in-range 7)))
+         (format t "filtered candidates (after even id, in even pos, constrained candidates): ~a~%"
+                 (filter-for-insertion
+                  t
+                  (list c2 c4 c6 c1 c3 c5 c7)
+                  (list 'in-an-even-position
+                        'after-all-clients-with-even-id)
+                  '(1 3 6)))))
+     #+END_SRC
+
+
+
+* Operations on lists (and routes)
+** select-random-element-from-list
+   Here we write a function to select a random element from a list.
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defun select-random-element-from (list)
+      "Returns a random element from the given list."
+      (if list (nth (random (length list)) list)))
+ #+END_SRC
+*** tests
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+    (dotimes (i 10)
+      (print (select-random-element-from '(1 2 3 4 5))))
+    #+END_SRC
+
+    #+RESULTS:
+    #+begin_example
+
+    4 
+    2 
+    3 
+    3 
+    1 
+    5 
+    2 
+    5 
+    3 
+    4 
+    #+end_example
+** insert-element-into
+*** description
+    Here we write a function to insert an element in a given place in a given position.  We'll make it a generic function, so we can change the place appropriately.
+*** generic-function
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defgeneric insert-element-into (element place position)
+      (:documentation "Inserts an element into a place."))
+ #+END_SRC
+*** method (t t nil)
+**** description
+     Insert an element into a list in a given position.  If the position is nil, don't do anything.
+**** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defmethod insert-element-into
+        (element place (pos (eql nil)))
+      "Insert the given element in the given position in the list.
+    Returns a new list.  If position is nil, return place."
+      place)
+ #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (print (insert-element-into 'a '(1 2 3 4 5 6) nil))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : (1 2 3 4 5 6) 
+
+*** method (t list number)
+**** description
+     Insert an element into a list in a given position.  
+**** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defmethod insert-element-into
+        (element (place list) (pos number))
+      "Insert the given element in the given position in the list.
+    Returns a new list."
+      (let* ((consed-element (if (atom element)
+                                 (cons element nil)
+                                 element))
+             (length (length place)))
+        (cond
+          ((= pos 0)
+           (append consed-element place))
+          ((> pos (length place))
+           (append place consed-element))
+          (t
+           (append (butlast place (- length pos))
+                   consed-element
+                   (nthcdr pos place))))))
+ #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (dotimes (i 7)
+       (print (insert-element-into 'a '(1 2 3 4 5 6) i)))
+     #+END_SRC
+
+*** method (t has-clients number)
+**** description
+     Insert an element into an instance of has-clients in a given position.
+
+     *Important note*: the position for this insertion is 0 based.
+
+     Another important note: this method destructively modifies the clients in the route passed as argument.
+**** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defmethod insert-element-into
+        (element (place has-clients) (pos number))
+      "Inserts the given element in the given position in an instance of has-clients."
+      (setf (clients place)
+          (insert-element-into element (clients place) pos)))
+    #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (with-basic-clients (1 2 3 4 5 6)
+       (let* ((r0 (basic-route :id 0
+                               :vehicle (basic-vehicle 1)
+                               :depot (basic-depot)
+                               :clients (list c1 c2 c3 c4 c5 c6)))
+              (r (clone r0)))
+         (bformat t "Testing insert-element-into basic-route")
+         (dotimes (i 7)
+           (insert-element-into 'a r i)
+           (format t "Route after insertion at pos ~a:~%~a~%"
+                   i r)
+           (setf r (clone r0)))))
+     #+END_SRC
+** insert-element-in-random-position
+*** description
+    This function receives:
+    - an element
+    - a list
+    - a list with candidates positions
+    and inserts the element in the list in one of the candidates position.
+
+    If the list of candidates is nil, then doesn't do anything.
+
+    It destructively modifies the list.  It uses the function =insert-element-into=.
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defun insert-element-in-random-position
+        (element place candidates)
+      "Insert the given element in `place' in one of the candidates positions in the list candidates If candidates is nil, doesn't do anything.  It uses the generic function insert-element-into."
+      (when candidates
+        (let* ((length (length candidates))
+              (random-number (random length))
+              (random-pos    (nth random-number candidates)))
+         (insert-element-into element place random-pos))))
+    #+END_SRC
+*** tests
+**** testing with candidates
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (with-basic-clients (1 2 3 4 5 6 7)
+         (let* ((r0 (basic-route :id 0
+                                 :vehicle (basic-vehicle 1)
+                                 :depot (basic-depot)
+                                 :clients (list c1 c2 c3 c4 c5 c6)))
+                (place `(1 2 3 4 5 6 7 8))
+                     (candidates `(0 4 8)))
+                (bformat t "Testing insert-element-in-random-position")
+                (format t "Inserting in LIST ~a with candidates ~a~%"
+                        place candidates)
+                (dotimes (i 5)
+                  (format t "   ~a~%"
+                          (insert-element-in-random-position 'a place candidates)))
+
+                (format t "Inserting in basic-route ~a with candidates ~a~%"
+                        place candidates)
+                (dotimes (i 5)
+                  (setf place (clone r0))
+                  (insert-element-in-random-position c7 place candidates)
+                  (format t "   ~a~%" (clients place)))))
+     #+END_SRC
+
+**** testing with empty candidates
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (with-basic-clients (1 2 3 4 5 6 7)
+         (let* ((r0 (basic-route :id 0
+                                 :vehicle (basic-vehicle 1)
+                                 :depot (basic-depot)
+                                 :clients (list c1 c2 c3 c4 c5 c6)))
+                (place `(1 2 3 4 5 6 7 8))
+                (candidates nil))
+                (bformat t "Testing insert-element-in-random-position")
+                (format t "Inserting in LIST ~a with candidates ~a~%"
+                        place candidates)
+                (dotimes (i 5)
+                  (format t "   ~a~%"
+                          (insert-element-in-random-position 'a place candidates)))
+
+                (format t "Inserting in basic-route ~a with candidates ~a~%"
+                        place candidates)
+                (dotimes (i 5)
+                  (setf place (clone r0))
+                  (insert-element-in-random-position c7 place candidates)
+                  (format t "   ~a~%" (clients place)))))
+     #+END_SRC
+** insert-client-in-route
+*** documentation
+    This function receives
+     - a client,
+     - a list,
+     - and an optional list with candidates.
+       This arg defaults to a list with all the postions in the list.
+
+    It inserts the client in a random position in the route.
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defun insert-client-in-route
+        (client route &optional filters candidates)
+      "Insert the given client in `place' in one of the candidates positions in the list candidates Candidates is an optional parameter defaulting to (numbers-in-range (length place))."
+      (let* ((candidates (or candidates
+                             (numbers-in-range
+                              1 (1+ (length (clients route))))))
+             (actual-candidates (if filters
+                                    (filter-for-insertion
+                                     client (clients route)
+                                     filters candidates)
+                                    ;; else
+                                    candidates))
+
+             (length (if actual-candidates
+                         (length actual-candidates)))
+             (random-number (if (and length
+                                     (> length 0))
+                                (random length)
+                                ;; else
+                                0))
+        (random-pos (if random-number
+                        (nth random-number actual-candidates)))
+        )
+
+
+      (insert-element-into client route random-pos)))
+    #+END_SRC
+*** tests
+**** no filters, no candidates
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (c4 (basic-cvrp-client 4 80))
+            (r (basic-route :id 1
+                            :clients (list c1 c2 c3)
+                            :vehicle (basic-vehicle 1)
+                            :depot (basic-depot)))
+
+            )
+       (insert-client-in-route c4 r)
+       (format t "route after insertion: ~a~%" (clients r)))
+     #+END_SRC
+**** no filters, candidate 0
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (c4 (basic-cvrp-client 4 80))
+            (r (basic-route :id 1
+                            :clients nil
+                            :vehicle (basic-vehicle 1)
+                            :depot (basic-depot)))
+
+            )
+       (insert-client-in-route c4 r nil '(0))
+       (format t "route after insertion: ~a~%" (clients r)))
+     #+END_SRC
+**** one filter, no candidates
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (c4 (basic-cvrp-client 4 80))
+            (r (basic-route :id 1
+                            :clients (list c1 c2 c3)
+                            :vehicle (basic-vehicle 1)
+                            :depot (basic-depot)))
+            )
+       (insert-client-in-route c4 r (list `after-all-clients-with-even-id))
+       (format t "route after insertion: ~a~%" (clients r)))
+     #+END_SRC
+**** one filter, candidates
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (c4 (basic-cvrp-client 4 80))
+            (r (basic-route :id 1
+                            :clients (list c1 c2 c3)
+                            :vehicle (basic-vehicle 1)
+                            :depot (basic-depot)))
+            )
+       (insert-client-in-route c4 r
+                               (list `after-all-clients-with-even-id)
+                               `(1 2))
+       (format t "route after insertion: ~a~%" (clients r)))
+     #+END_SRC
+**** one filter, no candidates
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (c4 (basic-cvrp-client 4 80))
+            (r (basic-route :id 1
+                            :clients (list c1 c2 c3)
+                            :vehicle (basic-vehicle 1)
+                            :depot (basic-depot)))
+            )
+       (insert-client-in-route c4 r
+                               (list `after-all-clients-with-even-id)
+                               `(0 1))
+       (format t "route after insertion: ~a~%" (clients r)))
+     #+END_SRC
+** insert-client-in-route-with-constraints
+*** documentation
+    This function receives
+     - a client,
+     - a list,
+     - a set of filters
+     - and a list with candidates.
+       If this list is empty, then no client is inserted.
+
+    It inserts the client in a random position in the route.
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defun insert-client-in-route-with-constraints
+        (client route filters candidates)
+      "Insert the given client in `place' in one of the candidates positions in the list candidates Candidates is an optional parameter defaulting to (numbers-in-range (length place))."
+      (let* ((actual-candidates (if filters
+                                    (filter-for-insertion
+                                     client (clients route)
+                                     filters candidates)
+                                    ;; else
+                                    candidates))
+
+             (length (if actual-candidates
+                         (length actual-candidates)))
+             (random-number (if (and length
+                                     (> length 0))
+                                (random length)))
+        (random-pos (if random-number
+                        (nth random-number actual-candidates))))
+
+
+      (insert-element-into client route random-pos)))
+    #+END_SRC
+*** tests
+**** no filters, insert anywhere 
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (c4 (basic-cvrp-client 4 80))
+            (r (basic-route :id 1
+                            :clients (list c1 c2 c3)
+                            :vehicle (basic-vehicle 1)
+                            :depot (basic-depot)))
+
+            )
+       (insert-client-in-route-with-constraints c4 r nil '(1 2 3 4))
+       (format t "route after insertion: ~a~%" (clients r)))
+     #+END_SRC
+
+     #+RESULTS:
+     : route after insertion: (<c1: 30> <c4: 80> <c2: 40> <c3: 20>)
+
+**** no filters, no candidates 
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (c4 (basic-cvrp-client 4 80))
+            (r (basic-route :id 1
+                            :clients (list c1 c2 c3)
+                            :vehicle (basic-vehicle 1)
+                            :depot (basic-depot))))
+
+       (insert-client-in-route-with-constraints c4 r nil '(0 1 2))
+       (format t "route after insertion: ~a~%" (clients r)))
+     #+END_SRC
+
+     #+RESULTS:
+     : route after insertion: (<c4: 80> <c1: 30> <c2: 40> <c3: 20>)
+
+** get-element-at-pos
+*** documentation
+    This function receives
+     - a route, and
+     - a position,
+
+    and returns the client in that position.  If the position is smaller than 1 or greater than the route length, it returns the depot.
+*** code
+**** generic function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defgeneric get-element-at-pos (pos lst)
+       (:documentation "Returnst the element at pos pos in the list "))
+     #+END_SRC
+
+**** method (number list)
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defmethod get-element-at-pos (pos (lst list))
+       "Returns the pos-th element in the lis"
+       (nth pos lst))
+     #+END_SRC
+
+**** method (number route)
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defmethod get-element-at-pos (pos route)
+       "INSERT AN APPROPRIATE COMMENT HERE."
+       (cond 
+         ((or (<= pos 0)
+               (> pos (length (clients route))))
+          (depot route))
+         (t (nth (1- pos) (clients route)))))
+     #+END_SRC
+*** tests
+**** simple test
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (c4 (basic-cvrp-client 4 80))
+            (r (basic-route :id 1
+                            :clients (list c1 c2 c3)
+                            :vehicle (basic-vehicle 1)
+                            :depot (basic-depot)))
+
+            )
+       (loop for i from 0 to 5
+             doing (format t "element at pos ~a: ~a~%" i
+                           (get-element-at-pos i r)))
+       (format t "Now with lists.~%")
+       (loop for i from 0 to 7
+             doing (format t "element at pos ~a: ~a~%" i
+                           (get-element-at-pos i '(1 2 3 4 5 6)))))
+     #+END_SRC
+
+     #+RESULTS:
+     #+begin_example
+     element at pos 0: <d:0>
+     element at pos 1: <c1: 30>
+     element at pos 2: <c2: 40>
+     element at pos 3: <c3: 20>
+     element at pos 4: <d:0>
+     element at pos 5: <d:0>
+     Now with lists.
+     element at pos 0: 1
+     element at pos 1: 2
+     element at pos 2: 3
+     element at pos 3: 4
+     element at pos 4: 5
+     element at pos 5: 6
+     element at pos 6: NIL
+     element at pos 7: NIL
+     #+end_example
+
+** make-empty-route-for-problem (generic function)
+*** description
+  This will be a generic function that receives a problem and returns an empty route.  Later, when we are solving more complex problems and we receive more parameters we can update the created route according to the argument we received.  
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+    (defgeneric make-empty-route-for-problem (problem)
+      (:documentation "Returns an empty route for the given problem."))
+    #+END_SRC
+** update-empty-route-with (generic-function)
+*** description
+    This function receives an empty route and an element and updates the route by adding the element to it.  For instance, if we call it with a depot, it changes the depot of the route to use the one passed as argument.  If it is a client, it adds it to the list of clients, and so on.
+
+    *This generic-function modifies the route passed as argument.*
+    
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+    (defgeneric update-empty-route-with (element route)
+      (:documentation "Updates the route with the given element.  This function is expected to be called after make-empty-route-for-problem."))
+    #+END_SRC
+** make-new-solution (generic-function)
+*** description
+    Returns an empty solution.  This is going to be a generic-function, because the solution may depend on the type of problem.
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defgeneric make-new-solution (problem)
+      (:documentation "Returns an empty new solution, according to the type of problem received as argument."))
+    #+END_SRC
+** add-element
+*** description
+    Here we write a function to insert an element to a list. It always append.
+*** generic-function
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defgeneric add-element (element place)
+      (:documentation "Inserts an element into a place."))
+ #+END_SRC
+*** method (t list)
+**** description
+     Insert an element into a list at the end.
+**** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defmethod add-element
+        (element (place list))
+      "Insert the given element to the front of the given list."
+      (let* ((consed-element (if (atom element)
+                                 (cons element nil)
+                                 element)))
+        (append consed-element place)))
+ #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (print (add-element 'a '(1 2 3 4 5 6)))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : (A 1 2 3 4 5 6) 
+
+*** method (t has-clients number)
+**** description
+     Insert an element into an instance of has-clients. 
+
+     Another important note: this method destructively modifies the clients in the route passed as argument.
+**** code
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defmethod add-element
+        (element (place has-clients))
+      "Inserts the given element in the given position in an instance of has-clients."
+      (push element (clients place)))
+    #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (with-basic-clients (1 2 3 4 5 6)
+       (let* ((r0 (basic-route :id 0
+                               :vehicle (basic-vehicle 1)
+                               :depot (basic-depot)
+                               :clients (list c1 c2 c3 c4 c5 c6)))
+              (r (clone r0)))
+         (bformat t "Testing insert-element-into basic-route")
+         (add-element 'a r)
+         (format t "Route after insertion:~%~a~%" r)
+         (setf r (clone r0))))
+     #+END_SRC
+
+     #+RESULTS:
+     : =========================================
+     :  Testing insert-element-into basic-route
+     : =========================================
+     : 
+     : Route after insertion:
+     : <r0: <v:1> (<d:0>: (A <c:1> <c:2> <c:3> <c:4> <c:5> <c:6>))>
+
+
+* make-empty-route for several problems
+** update-empty-route-with (elements basic-route)
+*** description
+    In this section we'll define how to update an empty route according to the given elements.  We'll define it for basic-route and basic elements, so we can use them with the rest of the problems.  I'll use a macro to save coding, because all the methods will be the same, the only difference will be the name of the element and the name of the slot we should update.
+
+    We'll have an optional third argument, for those cases where we need a different code (as is the case for the clients.)
+
+*** macro for the basic cases 
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+     (defmacro make-empty-route-update (class-name slot-name &optional code)
+       (let* ()
+         `(defmethod update-empty-route-with ((element ,class-name)
+                                              (route basic-route))
+            ,(if code
+                code
+                ;; else
+                `(setf (,slot-name route) element)))))
+     #+END_SRC
+**** testing macroexpansion
+     #+BEGIN_SRC lisp +n -r :results none :exports code
+     (make-empty-route-update basic-depot depot)
+     (make-empty-route-update basic-client nil (push element (clients route)))
+     #+END_SRC
+     
+*** method (depot basic-route)
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+     (make-empty-route-update basic-depot depot)
+     #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports code
+     (let* ((route (make-empty-route-for-problem a-n33-k6-problem))
+            (element (basic-depot 14)))
+       (update-empty-route-with element route)
+       (print route))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : <r1: <cv:1. 0/100> (<d:14>: NIL)> 
+*** method (vehicle basic-route)
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+     (make-empty-route-update basic-vehicle vehicle)
+     #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports code
+     (let* ((route (make-empty-route-for-problem a-n33-k6-problem))
+            (element (basic-vehicle 15)))
+       (update-empty-route-with element route)
+       (print route))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : <r1: <v:15> (<d:0>: NIL)> 
+*** method (client basic-route)
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+     (make-empty-route-update basic-client nil
+                              (if (= 0 (length (clients route)))
+                                  (then
+                                    (push element (clients route)))
+                                  (else
+                                    (insert-element-in-random-position
+                                     element route
+                                     (numbers-in-range 0 (length (clients route)))))))
+     #+END_SRC
+**** tests
+***** with 1 client
+      #+BEGIN_SRC lisp +n -r :results output :exports code
+      (let* ((route (make-empty-route-for-problem a-n33-k6-problem))
+             (element (basic-client 14)))
+        (update-empty-route-with element route)
+        (print route))
+      #+END_SRC
+
+      #+RESULTS:
+      : 
+      : <r1: <cv:1. 0/100> (<d:0>: (<c:14>))> 
+***** with 2 clients
+      #+BEGIN_SRC lisp +n -r :results output :exports code
+      (let* ((route (make-empty-route-for-problem a-n33-k6-problem))
+             (client1 (basic-client 1))
+             (client2 (basic-client 2)))
+        (update-empty-route-with client1 route)
+        (update-empty-route-with client2 route)
+        (print route))
+      #+END_SRC
+
+      #+RESULTS:
+      : 
+      : <r1: <cv:1. 0/100> (<d:0>: (<c:1> <c:2>))> 
+** make-empty-route (problem &rest elements)
+*** description
+  This function receives a problem and an optional list of elements (clients, depots, etc), and returns an "empty routes" where those elements are used.
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+    (defun make-empty-route (problem &rest elements)
+      (let* ((route (make-empty-route-for-problem problem)))
+        (loop for element in elements
+              doing (update-empty-route-with element route))
+        ;; finally let's return the route
+        route))
+    #+END_SRC
+*** tests
+**** basic test (with no elements)
+     #+BEGIN_SRC lisp +n -r :results output :exports code
+     (let* ((route (make-empty-route a-n33-k6-problem)))
+
+       (print route))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : <r1: <cv:1. 0/100> (<d:0>: NIL)> 
+**** basic test (with a depot)
+     #+BEGIN_SRC lisp +n -r :results output :exports code
+     (let* ((depot (basic-depot 1234))
+            (route (make-empty-route a-n33-k6-problem depot)))
+
+       (print route))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : <r1: <cv:1. 0/100> (<d:1234>: NIL)> 
+**** basic test (with a depot and a client)
+     #+BEGIN_SRC lisp +n -r :results output :exports code
+     (let* ((client (basic-client 45))
+            (depot (basic-depot 1234))
+            (route (make-empty-route a-n33-k6-problem depot client)))
+
+       (print route))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : <r1: <cv:1. 0/100> (<d:1234>: (<c:45>))> 
+     
+
+* CVRP
+** accessing the client's demand
+   We can access the demand of a client with the generic-function =demand= as in the following example.
+
+   #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+   (let* ((c1 (basic-cvrp-client 1 50)))
+     (format t "Demand of client c1: ~a~%"
+             (demand c1)))
+   #+END_SRC
+
+   #+RESULTS:
+   : Demand of client c1: 50
+
+** accessing the distance between two client's
+   This can be done with the function =get-distance-from-to=.  This function receives two clients and a distance-problem.  A distance problem is a problem with the slot distance-matrix.  The following example illustrates the use of this function.
+
+   The class cvrp-problem inherits from distance-problem.
+
+   #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+   (let* ((c1 (basic-cvrp-client 1 30))
+          (c2 (basic-cvrp-client 2 40))
+          (c3 (basic-cvrp-client 3 20))
+          (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                            :clients (list c1 c2 c3)
+                            :capacity 40
+                            :distance-matrix #2A((0 1 2 3)
+                                                 (1 0 4 6)
+                                                 (2 4 0 2)
+                                                 (3 6 2 0)))))
+     (format t "distance from c1 to c2: ~a~%"
+             (get-distance-from-to c1 c2 p1)))
+   #+END_SRC
+
+   #+RESULTS:
+   : distance from c1 to c2: 4
+** accessing the clients in a problem
+   We can get the list with clients in a basic-problem with the generic function =clients=.
+
+   The class cvrp-problem inherits from basic-problem.
+
+   #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+   (let* ((c1 (basic-cvrp-client 1 30))
+          (c2 (basic-cvrp-client 2 40))
+          (c3 (basic-cvrp-client 3 20))
+          (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                            :clients (list c1 c2 c3)
+                            :capacity 40
+                            :distance-matrix #2A((0 1 2 3)
+                                                 (1 0 4 6)
+                                                 (2 4 0 2)
+                                                 (3 6 2 0)))))
+     (format t "clients in p1: ~a~%"
+             (clients p1)))
+   #+END_SRC
+
+   #+RESULTS:
+   : clients in p1: (<c1: 30> <c2: 40> <c3: 20>)
+** accessing the capacity of the vehicles in a cvrp
+   We can get the capacity of the vehicles in an homogeneous fleet cvrp with the the generic function capacity.  The cvrp with homogeneous fleet is modelled with the class cvrp-problem.
+
+   The class cvrp-problem inherits from basic-problem.
+
+   #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+   (let* ((c1 (basic-cvrp-client 1 30))
+          (c2 (basic-cvrp-client 2 40))
+          (c3 (basic-cvrp-client 3 20))
+          (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                            :clients (list c1 c2 c3)
+                            :capacity 40
+                            :distance-matrix #2A((0 1 2 3)
+                                                 (1 0 4 6)
+                                                 (2 4 0 2)
+                                                 (3 6 2 0)))))
+     (format t "capacity of vehicles in p1: ~a~%"
+             (capacity p1)))
+   #+END_SRC
+
+   #+RESULTS:
+   : capacity of vehicles in p1: 40
+** predicate for smaller-than (x y)
+   To check if something is smaller-than another something we can use the =<= operator.
+** function to decrement a place by a given amount
+   To decrement a place by a given amount we can use the operator =decf=.
+** select-client satisfying conditions
+*** description
+    Here, we are supposed to receive a list of clients, a set of conditions, and we should return a client from that set satisfying all the conditions.  We can do that with the selection filters.
+
+    For instance, if we have something like:
+
+    #+BEGIN_EXAMPLE
+    (select-client c from unassigned-clients
+                     (with-demand <= 4))
+    #+END_EXAMPLE
+
+    we can express it as:
+
+    #+BEGIN_EXAMPLE
+    (setf c (select-random-element-from
+               (filter-for-selection
+                  unassigned-clients
+                  (list (with-demand-smaller-or-equal-to 4)))))
+    #+END_EXAMPLE
+    Let's see if that work.
+
+*** tests
+
+    First let's create a filter for the demand:
+
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (make-filter-for-selection with-demand-smaller-or-equal-to (n)
+                              (<= (demand element) n))
+    #+END_SRC
+
+    and now, let's test the selection:
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+    (progn
+
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (unassigned-clients (list c1 c2 c3))
+            (d 45)
+            ;; (p1 (cvrp-problem :id 1 :depot (basic-depot)
+            ;;                   :clients (list c1 c2 c3)
+            ;;                   :capacity 40
+            ;;                   :distance-matrix #2A((0 1 2 3)
+            ;;                                        (1 0 4 6)
+            ;;                                        (2 4 0 2)
+            ;;                                        (3 6 2 0))))
+            )
+       (format t "Selecting from ~a with demand <= ~a~%~a~%"
+               unassigned-clients d
+               (select-random-element-from
+                  (filter-for-selection
+                   unassigned-clients
+                   (list (funcall f1 t)))))))
+    #+END_SRC
+
+    #+RESULTS:
+    : Selecting from (<c1: 30> <c2: 40> <c3: 20>) with demand <= 45
+    : <c2: 40>
+   
+** insert-client in route in a position satisfying conditions
+*** description
+    Here, we receive a client, a route, and a set of conditions, and we should insert that client into that route in a position that satisfies all the conditions.  We can do that using the filters-for-insertion.
+
+    For instance, if we have something like:
+
+    #+BEGIN_EXAMPLE
+    (insert-client c into current-route
+                     (minimizing-distance-in problem))
+    #+END_EXAMPLE
+
+    we can express it as:
+
+    #+BEGIN_EXAMPLE
+    (insert-element-in-random-position
+         c current-route
+         (minimizing-distance-in problem))
+    #+END_EXAMPLE
+    Let's see if that work.
+*** tests
+    To run the previous example, we need to implement the function =minimizing-distance-in=.  I'm going to do that here:
+**** function minimizing-distance-in
+     This function is an filter-for-insertion, so it should receive the client to insert, the route, and a set of candidates.
+***** code
+      #+BEGIN_SRC lisp +n -r :results output :exports both
+      (defun minimizing-distance-in (problem)
+        (lambda (client route candidates)
+          (let* ((positions nil)
+                 (min-distance most-positive-fixnum)) 
+            (loop for pos in candidates
+                  for c_prev = (if (<= pos 0)
+                                  ;; return the depot
+                                  (depot route)
+                                  ;; else return the client at (1- pos) 
+                                  (nth (1- pos) (clients route)))
+                  for c_next = (if (>= pos (length (clients route)))
+                                  ;; return the depot
+                                  (depot route)
+                                  ;; else return the client at (1- pos) 
+                                  (nth pos (clients route)))
+                  for curr-distance =
+                  (- (+ (get-distance-from-to c_prev client problem)
+                        (get-distance-from-to client c_next problem))
+                     (get-distance-from-to c_prev c_next problem))
+                  doing (cond
+                          ((< curr-distance min-distance)
+                           (setf min-distance curr-distance)
+                           (setf positions (list pos)))
+                          ((= curr-distance min-distance)
+                           (push pos positions))))
+            ;; let's return the list
+            ;; with the positions
+            positions)))
+
+      #+END_SRC
+
+      #+RESULTS:
+
+      #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (with-basic-clients (1 2 3 4 5 6)
+       (let* ((r (basic-route :clients (list c1 c2 c3 c4 c5 c6)
+                              :depot (basic-depot))))
+         (format t "clients: ~a~%"
+                 (funcall (minimizing-distance-in t) t r
+                          '(0 1 2 3 4 5 6)))))
+     #+END_SRC
+***** tests
+      #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+      (let* ((c1 (basic-cvrp-client 1 30))
+             (c2 (basic-cvrp-client 2 40))
+             (c3 (basic-cvrp-client 3 20))
+             (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                                :clients (list c1 c2 c3)
+                                :capacity 40
+                                :distance-matrix #2A((0 1 2 3)
+                                                     (1 0 4 6)
+                                                     (2 4 0 2)
+                                                     (3 6 2 0))))
+             (r (basic-route :vehicle (basic-vehicle 1)
+                             :depot (basic-depot)
+                             :clients (list c1 c3 c3 c2 c1))))
+        (bformat t "Testing minimizing distance")
+
+        (format t "candidates minimizing distance: ~a~%"
+                (funcall (minimizing-distance-in p1)
+                         c3 r (numbers-in-range (length (clients r))))))
+      #+END_SRC
+**** testing example from sherlhy's
+      #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+      (let* ((c1 (basic-cvrp-client 1 30))
+             (c2 (basic-cvrp-client 2 40))
+             (c3 (basic-cvrp-client 3 20))
+             (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                                :clients (list c1 c2 c3)
+                                :capacity 40
+                                :distance-matrix #2A((0 1 2 3)
+                                                     (1 0 4 6)
+                                                     (2 4 0 2)
+                                                     (3 6 2 0))))
+             (r0 (basic-route :id 1
+                             :vehicle (basic-vehicle 1)
+                             :depot (basic-depot)
+                             :clients (list c1 c3 c3 c2 c1)))
+             (r (clone r0)))
+
+        (bformat t "Testing minimizing distance")
+
+        (format t "Route before inserting:~% ~a~%"
+                (clients r))
+
+        ;; here we insert in a random position
+        (insert-element-in-random-position
+         c3 r (filter-for-insertion
+               c3 r
+               (list
+                (minimizing-distance-in p1))
+               (numbers-in-range (length (clients r)))))
+
+        (format t "Route after inserting:~% ~a~%"
+                (clients r)))
+      #+END_SRC
+** remove-client from a list of clients
+*** description
+    To remove a client from a list of clients, I'll create a generic function =remove-client= and specialize it on lists and basic routes.
+*** generic-function
+    #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+    (defgeneric remove-client (client place)
+      (:documentation "Removes the given client from a given place"))
+    #+END_SRC
+*** method (t list)
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defmethod remove-client (client (place list))
+       (remove client place :test #'obj=))
+     #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (print (remove-client 1 (list 2 3 4 1 5 6 7)))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : (2 3 4 5 6 7) 
+*** method (t basic-route) (destructive)
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defmethod remove-client (client (place basic-route))
+       (setf (clients place)
+             (remove-client client (clients place))))
+     #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+             (c2 (basic-cvrp-client 2 40))
+             (c3 (basic-cvrp-client 3 20))
+             (r (basic-route :vehicle (basic-vehicle 1)
+                             :depot (basic-depot)
+                             :clients (list c1 c3 c2))))
+        (bformat t "Testing remove-client")
+
+        (remove-client c3 r)
+        (format t "route after removing c3: ~a~%"
+                (clients r)))
+     #+END_SRC
+
+     #+RESULTS:
+     : =======================
+     :  Testing remove-client
+     : =======================
+     : 
+     : route after removing c3: (<c1: 30> <c2: 40>)
+** make-new-solution
+*** description
+    Returns a new empty solution for the CVRP.
+*** method (cvrp-problem)
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defmethod make-new-solution ((problem cvrp-problem))
+       (make-instance 'basic-solution :id 1 :routes nil :cost 0))
+     #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (print (remove-client 1 (list 2 3 4 1 5 6 7)))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : (2 3 4 5 6 7) 
+*** tests
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+    (print (make-new-solution a-n33-k6-problem))
+    #+END_SRC
+
+    #+RESULTS:
+    : 
+    : S1: (0)
+    :  
+** create an empty route for a CVRP
+*** description
+    This function receives a CVRP problem and returns an empty route for that problem.  The depot is a generic depot and the vehicle is a basic vehicle with the given capacity.  As we are working with a basic CVRP we return an instance of route-for-simulation.
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+    (defmethod make-empty-route-for-problem ((problem cvrp-problem))
+      (route-for-simulation :id 1
+                            :vehicle (cvrp-vehicle 1 (capacity problem))
+                            :depot (basic-depot 0)
+                            :clients nil))
+    #+END_SRC
+
+    #+RESULTS:
+
+*** tests
+    Let's test it:
+
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+    (format t "empty-route for cvrp:~% ~a~%"
+            (make-empty-route-for-problem a-n65-k9-problem))
+    #+END_SRC
+
+    #+RESULTS:
+    : empty-route for cvrp:
+    :  <r1: <cv:1. 0/100> (<d:0>: NIL)>
+
+
+
+* Dafne and CUPET problem
+** description
+   In this problem, we have clients that can demand different products and the vehicles have multiple compartments, where we can transport different products on each.  In this section I'm going to add some functions that can be used to create initial routes for instances of this problem.
+** creating a problem instance
+   #+BEGIN_SRC lisp +n -r :results output :exports both
+   (defparameter dafne-problem-1
+     (let* ( ;;{{{ let's define the products
+            (p1 (basic-product 1 "Gasolina especial"))
+            (p2 (basic-product 2 "Gasolina regular"))
+            (p3 (basic-product 3 "Petroleo"))
+            ;;}}}
+            ;;{{{ now the clients
+            (c1 (basic-cupet-client 1 (list p1 p2 p3)))
+            (c2 (basic-cupet-client 2 (list p1)))
+            (c3 (basic-cupet-client 3 (list p1 p2)))
+            (c4 (basic-cupet-client 4 (list p1)))
+            (c5 (basic-cupet-client 5 (list p1 p3)))
+            (c6 (basic-cupet-client 6 (list p1)))
+            (c7 (basic-cupet-client 7 (list p1)))
+            ;;}}}
+
+
+            ;;{{{ next, the vehicles
+            (v1 (basic-cupet-vehicle 1 2
+                                     :compatible-clients
+                                     (list c1 c2 c3 c4 c5)
+                                     :products
+                                     (list p1)))
+            (v2 (basic-cupet-vehicle 2 2
+                                     :compatible-clients
+                                     (list c3 c4 c5 c6 c7)
+                                     :products
+                                     (list p1)))
+            (v3 (basic-cupet-vehicle 3 3
+                                     :compatible-clients
+                                     (list c4)
+                                     :products
+                                     (list p1 p2 p3)))
+            (v4 (basic-cupet-vehicle 4 3
+                                     :compatible-clients
+                                     (list c1 c2 c3 c4)
+                                     :products
+                                     (list p1 p2 p3)))
+            ;;}}}
+            ;;{{{ here comes the distance matrix
+            (distance-matrix #2A((  0  3 12  5  7  8 10  4)
+                                 (  3  0  2  4  6  6  4  2)
+                                 ( 12  2  0  2  4  6  6  4)
+                                 (  5  4  2  0  2  4  6  6)
+                                 (  7  6  4  2  0  2  4  6)
+                                 (  8  6  6  4  2  0  2  4)
+                                 ( 10  4  6  6  4  2  0  2)
+                                 (  4  2  4  6  6  4  2  0)))
+            ;;}}}
+            ;;{{{ and finally, here we create an instance of
+            ;; a bosic problem
+            (problem1 (cupet-problem  
+                       :id 1
+                       :clients (list c1 c2 c3 c4 c5 c6 c7)
+                       :depot (basic-depot)
+                       :products (list p1 p2 p3)
+                       :vehicles (list v1 v2 v3 v4)
+                       :distance-matrix distance-matrix))
+            ;;}}}
+            )
+
+       (format t "products in c1 *in vehicle*: ~a~%" (products (first (compatible-clients v1))))
+         
+
+       ;;{{{ let's set the demand for each product and clients
+       (setf (product-demand p1 c1) 20)
+       (setf (product-demand p2 c1) 20)
+       (setf (product-demand p3 c1) 40)
+       (setf (product-demand p1 c2) 15)
+       (setf (product-demand p1 c3) 11)
+       (setf (product-demand p2 c3) 20)
+       (setf (product-demand p1 c4) 25)
+       (setf (product-demand p1 c5) 22)
+       (setf (product-demand p3 c5) 18)
+       (setf (product-demand p1 c6) 17)
+       (setf (product-demand p1 c7) 21)
+       ;;}}}
+
+       ;;{{{ let's set the compartment capacity for each vehicle
+       ;; v1 ;;
+       (set-compartment-capacity p1 v1 45)
+       (set-compartment-capacity p3 v1 30)
+       ;; v2 ;;
+       (set-compartment-capacity p1 v2 40)
+       (set-compartment-capacity p2 v2 35)
+       ;; v3 ;;
+       (set-compartment-capacity p1 v3 400)
+       (set-compartment-capacity p2 v3 190)
+       (set-compartment-capacity p3 v3 350)
+       ;; v4 ;;
+       (set-compartment-capacity p1 v4 100)
+       (set-compartment-capacity p2 v4 190)
+       (set-compartment-capacity p3 v4 150)
+       ;;}}}
+
+       ;; (bformat t "Testing the creation of a cupet-problem")
+
+       ;; (check-= 20 (product-demand p1 c1))
+       ;; (check-nil  (product-demand p2 c1))
+
+       ;; (loop for v in (list v1 v2 v3 v4)
+       ;;       do (format t "products of v~a: ~a~%"
+       ;;                  (id v)
+       ;;                  (products v)))
+
+       (format t "clients: ~a~%" (clients problem1))
+
+
+       (format t "products in c1 [at the end]: ~a~%" (products c1))
+
+       (format t "products in c1 *in vehicle* END: ~a~%" (products (first (compatible-clients v1))))
+
+       ;; let's return the problem
+       problem1
+
+       ))
+       #+END_SRC
+
+       #+RESULTS:
+       #+begin_example
+       =========================================
+        Testing the creation of a cupet-problem
+       =========================================
+
+          pass ... Check 20:         (PRODUCT-DEMAND P1 C1)
+          pass ... Check NIL:        (PRODUCT-DEMAND P2 C1)
+       products of v1: (<p1: Gasolina especial>)
+       products of v2: (<p1: Gasolina especial>)
+       products of v3: (<p1: Gasolina especial> <p2: Gasolina regular> <p3: Petroleo>)
+       products of v4: (<p1: Gasolina especial> <p2: Gasolina regular> <p3: Petroleo>)
+       clients: (<cupet c1> <cupet c2> <cupet c3> <cupet c4> <cupet c5> <cupet c6>
+                 <cupet c7>)
+       #+end_example
+
+** make-new-solution (for CUPET's problem)
+*** description
+    Returns a new empty solution for the CUPET's problem.
+*** method (cupet-problem)
+**** code
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle ../src/vrp-initial-routes.lisp
+     (defmethod make-new-solution ((problem cupet-problem))
+       (make-instance 'basic-solution :id 1 :routes nil :cost 0))
+     #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (print (remove-client 1 (list 2 3 4 1 5 6 7)))
+     #+END_SRC
+
+     #+RESULTS:
+     : 
+     : (2 3 4 5 6 7) 
+*** tests
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+    (print (make-new-solution a-n33-k6-problem))
+    #+END_SRC
+
+    #+RESULTS:
+    : 
+    : S1: (0)
+    :  
+** create an empty route for a CUPET's problem
+*** description
+    This function receives a CUPET problem and returns an empty route for that problem.  The depot is a generic depot and the vehicle is a basic vehicle with the given capacity.  As we are working with a basic CVRP we return an instance of route-for-simulation.
+*** code
+    #+BEGIN_SRC lisp +n -r :results none :exports both :tangle ../src/vrp-initial-routes.lisp
+    (defmethod make-empty-route-for-problem ((problem cupet-problem))
+      (route-for-simulation :id 1
+                            :vehicle nil
+                            :depot (basic-depot 0)
+                            :clients nil))
+    #+END_SRC
+*** tests
+**** basic test
+     Let's test it:
+
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (format t "empty-route for cupet problem:~% ~a~%"
+             (make-empty-route-for-problem dafne-problem-1))
+     #+END_SRC
+
+     #+RESULTS:
+     : empty-route for cupet problem:
+     :  <r1: NIL (<d:0>: NIL)>
+**** testing empty route with vehicle
+     Let's test it:
+
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (format t "empty-route for cupet problem:~% ~a~%"
+             (make-empty-route dafne-problem-1 dv1))
+     #+END_SRC
+
+     #+RESULTS:
+     : empty-route for cupet problem:
+     :  <r1: <cupet_v1: 2> (<d:0>: (<cupet c1>))>
+
+
+   
+
+
+* Simulating Sherlhy's code
+** description
+   In this section I'm going to replicate Sherlhy's code using the functions defined in this file.
+
+** CVRP
+*** description
+    The first function I'm going to simulate is the following
+
+     #+BEGIN_EXAMPLE
+     (define-func getting-routes (problem) 
+       (declare-variable route)
+       (declare-variable clients)
+       (assign clients (fget problem 'list_clients))
+       (declare-variable capacity)
+       (assign capacity (fget problem 'capacity))
+       ;;
+       ;; TODO: do we need to initialize the variable route?
+       ;; 
+       (while (there-are clients) 
+         (select-client c clients 
+                        (where c (smaller-than (p-demand c) capacity)))
+         (if-else (there-is c) 
+                  (then
+                    (insert-client c route)
+                    (remove-client c clients)
+                    (decrement capacity (p-demand c)))
+                  (else
+                    (ret route)))))
+     #+END_EXAMPLE
+
+*** code
+**** version 1
+       #+BEGIN_SRC lisp +n -r :results output :exports both
+       (defun make-feasible-route1 (problem)
+         (let* (current-route
+                clients
+                capacity
+                c)
+
+           (setf clients (clients problem))
+           (setf capacity (capacity problem))
+           (setf current-route (make-empty-cvrp-route capacity))
+
+           ;; (format t "capacity: ~a~%" capacity)
+           (loop while clients
+                 do (setf c (select-random-element-from
+                             (loop for c in clients
+                                   if (<= (demand c) capacity)
+                                   collect c)))
+                 do (if c
+                        (then
+                          (insert-client-in-route
+                           c current-route)
+                          (setf clients (remove-client c clients))
+                          (decf capacity (demand c)))
+                        (else
+                          (loop-finish))))
+           ;; return the current route
+           current-route))
+       #+END_SRC
+**** tests version 1
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                              :clients (list c1 c2 c3)
+                              :capacity 80
+                              :distance-matrix #2A((0 1 2 3)
+                                                  (1 0 4 6)
+                                                   (2 4 0 2)
+                                                   (3 6 2 0))))
+            )
+       (format t "feasible route: ~a~%"
+               (clients (make-feasible-route1 p1))))
+     #+END_SRC
+*** testing generated code
+**** let's load it from file
+     #+BEGIN_SRC lisp +n -r :results none :exports both
+     (load "/tmp/f.lisp")
+     #+END_SRC
+**** let's execute it with a small problem
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (problem-capacity 60)
+            (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                              :clients (list c1 c2 c3)
+                              :capacity problem-capacity
+                              :distance-matrix #2A((0 1 2 3)
+                                                  (1 0 4 6)
+                                                   (2 4 0 2)
+                                                   (3 6 2 0))))
+            )
+       (format t "feasible route: ~a~%"
+               (clients (generate-route1 p1))))
+     #+END_SRC
+
+**** let's test it with the problem a-n33-k6
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            )
+       (format t "feasible route: ~a~%"
+               (clients (generate-route1 a-n33-k6-problem))))
+     #+END_SRC
+
+**** let's test it minimizing-distance with a small problem
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ((c1 (basic-cvrp-client 1 30))
+            (c2 (basic-cvrp-client 2 40))
+            (c3 (basic-cvrp-client 3 20))
+            (problem-capacity 60)
+            (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                              :clients (list c1 c2 c3)
+                              :capacity problem-capacity
+                              :distance-matrix #2A(( 0 10  20  3)
+                                                   (10  0  4  6)
+                                                   (20  4  0  2)
+                                                   ( 3  6  2  0))))
+            )
+       (format t "feasible route: ~a~%"
+               (clients (generate-route2 p1))))
+     #+END_SRC
+
+     #+RESULTS:
+     : feasible route: (<c3: 20> <c1: 30>)
+
+**** let's test it minimizing distance with a-n33-k6-problem 
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+     (let* ()
+       (format t "feasible route: ~a~%"
+               (clients (generate-route2 a-n33-k6-problem))))
+     #+END_SRC
+
+
+
+* Testing code generated by Sherlhy's code
+** CVRP
+*** description
+    Here I'll test the code generated by algorithms written is Sherlhy's language.  To use the following snippets, we need first to generate the file /tmp/f.lisp.
+
+*** let's load the function from a file
+    #+BEGIN_SRC lisp +n -r :results none :exports both
+    (load "/tmp/f.lisp")
+    #+END_SRC
+*** let's test generate-route1 with a small problem
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+    (let* ((c1 (basic-cvrp-client 1 30))
+           (c2 (basic-cvrp-client 2 40))
+           (c3 (basic-cvrp-client 3 20))
+           (problem-capacity 60)
+           (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                             :clients (list c1 c2 c3)
+                             :capacity problem-capacity
+                             :distance-matrix #2A((0 1 2 3)
+                                                 (1 0 4 6)
+                                                  (2 4 0 2)
+                                                  (3 6 2 0))))
+           )
+      (format t "feasible route: ~a~%"
+              (clients (generate-route1 p1))))
+    #+END_SRC
+
+*** let's test generate-route1 with the problem a-n33-k6
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+    (let* ((c1 (basic-cvrp-client 1 30))
+           (c2 (basic-cvrp-client 2 40))
+           (c3 (basic-cvrp-client 3 20))
+           )
+      (format t "feasible route: ~a~%"
+              (clients (generate-route1 a-n33-k6-problem))))
+    #+END_SRC
+
+*** let's test generate-route2 minimizing-distance with a small problem
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+    (let* ((c1 (basic-cvrp-client 1 30))
+           (c2 (basic-cvrp-client 2 40))
+           (c3 (basic-cvrp-client 3 20))
+           (problem-capacity 60)
+           (p1 (cvrp-problem :id 1 :depot (basic-depot)
+                             :clients (list c1 c2 c3)
+                             :capacity problem-capacity
+                             :distance-matrix #2A(( 0 10  20  3)
+                                                  (10  0  4  6)
+                                                  (20  4  0  2)
+                                                  ( 3  6  2  0))))
+           )
+      (format t "feasible route: ~a~%"
+              (clients (generate-route2 p1))))
+    #+END_SRC
+
+    #+RESULTS:
+    : feasible route: (<c3: 20> <c1: 30>)
+
+*** let's test generate-route2 minimizing distance with a-n33-k6-problem 
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp
+    (let* ()
+      (format t "feasible route: ~a~%"
+              (clients (generate-route2 a-n33-k6-problem))))
+    #+END_SRC

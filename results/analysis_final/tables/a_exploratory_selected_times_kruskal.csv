@@ -1,0 +1,7 @@
+variant,instance,metric,groups,statistic,p_value
+baseline-first,A-n33-k5,gap_percent,4,4.068868815680728,0.254122927331951
+baseline-first,A-n33-k5,elapsed_time_seconds,4,4.860512745721024,0.1823007029170696
+baseline-first,A-n65-k9,gap_percent,4,22.234339572409116,5.8302234508136954e-05
+baseline-first,A-n65-k9,elapsed_time_seconds,4,14.587598864269037,0.002205245303015157
+baseline-first,A-n80-k10,gap_percent,4,52.36264471993607,2.5067757845871658e-11
+baseline-first,A-n80-k10,elapsed_time_seconds,4,41.423305785123944,5.317830272463057e-09

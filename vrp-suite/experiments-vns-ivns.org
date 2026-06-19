@@ -1,0 +1,4475 @@
+#+TITLE: experiments-vns-ivns
+#+AUTHOR: Olivia Ibañez Mustelier
+
+
+* Descripción
+
+Este archivo contiene la infraestructura de experimentación para ejecutar
+VNS e IVNS sobre instancias CVRP y guardar los resultados en archivos CSV.
+
+El objetivo del archivo no es explicar la teoría de VNS, IVNS o del CVRP,
+sino organizar el código necesario para:
+
+- cargar los módulos del sistema;
+- definir una configuración experimental;
+- ejecutar corridas individuales;
+- ejecutar baterías completas de experimentos;
+- guardar resultados resumidos en =summary.csv=;
+- guardar trazas por iteración en =trace.csv=.
+
+El archivo genera principalmente:
+
+- =../src/experiments-vns-ivns.lisp=:
+  infraestructura general de experimentación.
+
+- =../src/ivns-experiments.lisp=:
+  versión experimental de IVNS con métricas y trazas.
+
+La documentación de este archivo está pensada para seguir el flujo del
+código y entender cómo se ejecutan los experimentos desde Lisp.
+
+* Flujo general del archivo
+
+El flujo del archivo es el siguiente:
+
+1. se define el paquete experimental;
+2. se cargan los módulos necesarios del VRP, VNS e IVNS;
+3. se define una configuración por defecto;
+4. se preparan funciones auxiliares para semillas, BKS y CSV;
+5. se definen funciones para ejecutar una corrida individual;
+6. se exportan los resultados de cada corrida;
+7. se define la ejecución masiva de experimentos;
+8. se define la versión experimental de IVNS;
+9. se incluyen comandos básicos para tanglear, cargar y ejecutar.
+
+La idea es que el lector pueda seguir el archivo de arriba hacia abajo sin
+tener que buscar funciones en otro lugar.
+
+
+* Carga del sistema
+
+Esta sección carga los módulos necesarios para ejecutar los experimentos.
+
+El orden de carga es importante:
+
+1. primero se carga el framework base del VRP;
+2. después se carga VNS;
+3. luego se cargan los módulos de IVNS;
+4. finalmente se carga la versión experimental de IVNS.
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp
+(load "src/vrp-load-files.lisp")
+(load "src/vrp-vns.lisp")
+
+(load "src/ivns-package.lisp")
+(load "src/ivns-sequence-interpreter.lisp")
+(load "src/ivns-string-generator.lisp")
+(load "src/vrp-ivns.lisp")
+(load "src/ivns-experiments.lisp")
+#+END_SRC
+
+* Paquete experimental
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp  
+(defpackage :vrp-experiments
+  (:use :cl :vrp))
+
+(in-package :vrp-experiments)
+#+END_SRC
+
+* Configuración experimental
+
+Esta sección define la configuración base que usan las funciones de
+ejecución.
+
+La variable =*default-experiment-config*= agrupa los parámetros principales
+del experimento:
+
+- algoritmos a ejecutar;
+- instancias;
+- semillas;
+- BKS de referencia;
+- número máximo de iteraciones;
+- límites de estancamiento;
+- parámetros de Shake;
+- parámetros de VND;
+- parámetros propios de IVNS;
+- política de reinicio de cadenas IVNS al aceptar una mejora;
+- archivos de salida.
+
+Centralizar estos valores evita repetir parámetros en varias funciones y
+permite modificar la batería experimental desde un solo lugar.
+
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp   
+(defparameter *default-experiment-config*
+  '(:algorithms (:vns :ivns)
+
+    :instances
+    (vrp::a-n33-k5-problem
+     vrp::a-n65-k9-problem)
+
+    :known-bests
+    ((vrp::a-n33-k5-problem . 661)
+     (vrp::a-n65-k9-problem . 1174))
+
+    :seeds
+    (1 2 3 4 5)
+
+    :max-iter 50
+    :kmax 5
+    :max-no-improve 20
+
+    :shake-max-tries 20
+
+    :vnd-mode :best
+    :vnd-max-rounds 50
+    :vnd-max-no-improve 10
+
+    :generation-max-tries 30
+    :reset-generated-strings-on-improvement-p t
+    :penalty-factor 1000
+
+    :time-limit-seconds nil
+
+    :output-dir "results"
+
+    :summary-file "results/summary.csv"
+    :trace-file "results/trace.csv"))
+#+END_SRC
+
+* Utilidades CSV
+
+Esta sección contiene funciones auxiliares para escribir resultados en CSV.
+
+Se generan dos archivos:
+
+- =summary.csv=:
+  guarda una fila por corrida.
+
+- =trace.csv=:
+  guarda una fila por iteración.
+
+Las funciones de esta sección se encargan de:
+
+- escapar valores para formato CSV;
+- escribir cabeceras;
+- convertir valores Lisp a texto;
+- agregar filas a los archivos de salida.
+
+Estas funciones no ejecutan VNS ni IVNS. Solo formatean y guardan los datos
+generados por las corridas.
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp
+
+;;; ===================================================== 
+;;;   CSV
+;;; ===================================================== 
+
+(defun ensure-results-directory (path)
+
+  "Crea la carpeta de resultados si no existe.
+   Si PATH viene NIL, usa results/ por defecto."
+
+  (let* ((safe-path
+          (or path
+              "results/"))
+
+         (directory-path
+          (cond
+            ((pathnamep safe-path)
+             safe-path)
+
+            ((and (stringp safe-path)
+                  (> (length safe-path) 0)
+                  (char= (char safe-path
+                               (1- (length safe-path)))
+                         #\/))
+             safe-path)
+
+            ((stringp safe-path)
+             (concatenate 'string
+                          safe-path
+                          "/"))
+
+            (t
+             "results/"))))
+
+    (ensure-directories-exist
+     (merge-pathnames
+      "dummy.tmp"
+      directory-path))))
+
+(defun experiment-algorithm-name (algorithm)
+  (cond
+    ((keywordp algorithm)
+     (string-downcase (symbol-name algorithm)))
+
+    ((symbolp algorithm)
+     (string-downcase (symbol-name algorithm)))
+
+    ((stringp algorithm)
+     (string-downcase algorithm))
+
+    (t
+     (string-downcase
+      (format nil "~a" algorithm)))))
+
+
+(defun experiment-instance-name (instance)
+  (cond
+    ((and (boundp 'vrp::a-n32-k5-problem)
+          (eq instance vrp::a-n32-k5-problem))
+     "A-n32-k5")
+
+    ((and (boundp 'vrp::a-n33-k5-problem)
+          (eq instance vrp::a-n33-k5-problem))
+     "A-n33-k5")
+
+    ((and (boundp 'vrp::a-n33-k6-problem)
+          (eq instance vrp::a-n33-k6-problem))
+     "A-n33-k6")
+
+    ((and (boundp 'vrp::a-n37-k5-problem)
+          (eq instance vrp::a-n37-k5-problem))
+     "A-n37-k5")
+
+    ((and (boundp 'vrp::a-n65-k9-problem)
+          (eq instance vrp::a-n65-k9-problem))
+     "A-n65-k9")
+
+    ((and (boundp 'vrp::a-n80-k10-problem)
+          (eq instance vrp::a-n80-k10-problem))
+     "A-n80-k10")
+
+    ((and (boundp 'vrp::f-n135-k7-problem)
+          (eq instance vrp::f-n135-k7-problem))
+     "F-n135-k7")
+
+    ((symbolp instance)
+     (string-downcase
+      (symbol-name instance)))
+
+    (t
+     (format nil "~a" instance))))
+
+
+(defun make-run-id
+    (algorithm
+     instance
+     seed)
+
+  (format nil "~a_~a_~a"
+          (experiment-algorithm-name algorithm)
+          (experiment-instance-name instance)
+          seed))
+
+
+(defun csv-escape-string (text)
+  (with-output-to-string (out)
+    (loop
+      for ch across text do
+        (if (char= ch #\")
+            (write-string "\"\"" out)
+            (write-char ch out)))))
+
+
+(defun csv-safe (value)
+  (cond
+    ((null value)
+     "")
+
+    ((eq value t)
+     "true")
+
+    ((stringp value)
+     (format nil "\"~a\""
+             (csv-escape-string value)))
+
+    ((symbolp value)
+     (string-downcase
+      (symbol-name value)))
+
+    ((integerp value)
+     (format nil "~d" value))
+
+    ((numberp value)
+     (format nil "~,6f"
+             (coerce value 'double-float)))
+
+    (t
+     (format nil "\"~a\""
+             (csv-escape-string
+              (format nil "~a" value))))))
+
+(defun write-csv-row (stream values)
+  (format stream
+          "~{~a~^,~}~%"
+          (mapcar #'csv-safe values))
+
+  (finish-output stream))
+
+(defun initialize-summary-csv (path)
+
+  "Inicializa el archivo summary.csv.
+
+   Cada fila resume una corrida completa. Esta cabecera debe mantenerse
+   alineada exactamente con la lista escrita por APPEND-SUMMARY-RESULT."
+  (with-open-file (stream
+                   path
+                   :direction :output
+                   :if-exists :supersede
+                   :if-does-not-exist :create)
+
+    (write-csv-row
+     stream
+     '("run_id"
+
+       "algorithm"
+       "instance"
+       "seed"
+
+       "known_best"
+
+       "max_iter"
+       "kmax"
+       "max_no_improve"
+
+       "shake_max_tries"
+       "generation_max_tries"
+
+       "vnd_mode"
+       "vnd_max_rounds"
+       "vnd_max_no_improve"
+
+       "time_limit_seconds"
+       "termination_reason"
+
+       "initial_cost"
+       "initial_solution_signature"
+       "initial_solution_shared_p"
+       "initial_solution_source"
+
+       "best_cost"
+       "final_cost"
+
+       "gap_percent"
+
+       "iterations"
+       "accepted_improvements"
+
+       "invalid_neighbors"
+       "no_improvement_neighbors"
+       "timeout_neighbors"
+
+       "neighbors_evaluated"
+       "generation_tries"
+
+       "elapsed_time_seconds"
+
+       "best_iteration"
+       "stagnation_iterations"
+
+       "feasible"
+       "status"
+       "error"
+
+       "ivns_string_length_avg"
+       "ivns_complexity_avg"
+
+       "ivns_max_neighborhood_seconds"
+       "ivns_reset_strings_on_improvement"
+
+       "ivns_candidates_per_iteration"
+       "ivns_candidate_selection_mode"
+       "ivns_exploration_rate"
+       "ivns_candidates_generated"
+       "ivns_candidates_valid"
+       "ivns_candidates_timeout"
+       "ivns_candidates_invalid"
+       "ivns_candidates_no_improvement"
+       "ivns_candidates_selected"
+       "ivns_candidate_success_rate"
+
+       "ivns_strings_generated_total"
+       "ivns_strings_valid_total"
+       "ivns_strings_invalid_total"
+       "ivns_strings_evaluated_total"
+       "ivns_strings_selected_total"
+       "ivns_strings_accepted_total"
+       "ivns_unique_strings_total"
+
+       "ivns_reject_too_many_r"
+       "ivns_reject_too_short"
+       "ivns_reject_too_long"
+       "ivns_reject_unbalanced"
+       "ivns_reject_missing_required_symbol"
+       "ivns_reject_forbidden_expensive_pattern"
+       "ivns_reject_semantic_invalid"
+       "ivns_reject_duplicated_string"
+       "ivns_reject_generation_limit_reached"
+       "ivns_reject_unknown"))))
+
+(defun initialize-trace-csv (path)
+
+  (with-open-file (stream
+                   path
+                   :direction :output
+                   :if-exists :supersede
+                   :if-does-not-exist :create)
+
+    (write-csv-row
+     stream
+     '("run_id"
+
+       "algorithm"
+       "instance"
+       "seed"
+
+       "iter"
+       "k"
+
+       "current_cost"
+       "best_cost"
+
+       "delta"
+
+       "accepted"
+
+       "shake_applied"
+       "shake_tries"
+       "shake_invalid"
+
+       "vnd_rounds"
+       "vnd_improvements"
+
+       "neighbors_evaluated"
+
+       "ivns_string"
+       "ivns_string_length"
+
+       "ivns_complexity_score"
+
+       "ivns_generation_tries"
+
+       "ivns_strings_generated_iter"
+       "ivns_strings_valid_iter"
+       "ivns_strings_invalid_iter"
+       "ivns_strings_evaluated_iter"
+       "ivns_strings_selected_iter"
+       "ivns_strings_accepted_iter"
+       "ivns_unique_strings_iter"
+       "ivns_filter_reject_reason"
+
+       "elapsed_time_seconds"
+
+       "status"
+       "error"))))
+       
+#+END_SRC
+
+
+* Métricas experimentales registradas
+
+La infraestructura registra métricas en dos niveles.
+
+** Métricas por corrida
+
+Estas métricas se guardan en =summary.csv=:
+
+| Métrica | Significado |
+|---------+-------------|
+| =initial_cost= | costo de la solución inicial |
+| =best_cost= | mejor costo encontrado |
+| =final_cost= | costo de la solución al terminar |
+| =gap_percent= | diferencia porcentual respecto al BKS |
+| =iterations= | cantidad de iteraciones ejecutadas |
+| =accepted_improvements= | mejoras aceptadas |
+| =invalid_neighbors= | vecinos inválidos |
+| =no_improvement_neighbors= | vecinos válidos que no mejoran |
+| =timeout_neighbors= | vecindades detenidas por tiempo |
+| =neighbors_evaluated= | cantidad de vecinos evaluados |
+| =generation_tries= | intentos de generación de cadenas IVNS |
+| =ivns_reset_strings_on_improvement= | indica si IVNS limpia el historial de cadenas al aceptar una mejora |
+| =elapsed_time_seconds= | tiempo total de ejecución |
+| =termination_reason= | razón de parada |
+
+** Métricas por iteración
+
+Estas métricas se guardan en =trace.csv=:
+
+| Métrica | Significado |
+|---------+-------------|
+| =iter= | número de iteración |
+| =k= | nivel de vecindad o contador experimental |
+| =current_cost= | costo de la solución actual |
+| =best_cost= | mejor costo acumulado |
+| =delta= | cambio de costo |
+| =accepted= | indica si la solución fue aceptada |
+| =shake_applied= | indica si hubo perturbación |
+| =vnd_rounds= | rondas de VND ejecutadas |
+| =vnd_improvements= | mejoras dentro del VND |
+| =ivns_string= | cadena generada por IVNS |
+| =ivns_string_length= | longitud de la cadena IVNS |
+| =ivns_complexity_score= | complejidad estimada de la cadena |
+| =status= | estado de la iteración |
+| =error= | mensaje de error, si existe |
+
+Estas métricas permiten analizar calidad, estabilidad, tiempo, robustez y
+comportamiento interno de los algoritmos.
+
+* Manejo de semillas
+
+Esta sección controla la inicialización del estado aleatorio antes de cada
+corrida.
+
+Las semillas se registran en los CSV para identificar las repeticiones
+experimentales y controlar, en la medida de lo posible, la ejecución
+estocástica. Sin embargo, no deben interpretarse automáticamente como un
+pareo estadístico entre VNS e IVNS.
+
+En particular, el mismo número de semilla no garantiza por sí solo que dos
+algoritmos partan de una condición inicial idéntica ni que consuman la
+aleatoriedad de la misma forma. IVNS puede consumir aleatoriedad adicional
+durante la generación de cadenas, el filtrado, los intentos de generación y
+la evaluación de vecindades.
+
+Por esta razón, el análisis estadístico posterior debe verificar si existe
+pareo real entre corridas. En ausencia de una correspondencia verificable,
+las corridas se interpretan como muestras independientes bajo la misma
+configuración experimental.
+
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp
+(defun initialize-seed (seed)
+
+  "Inicializa la semilla de forma reproducible.
+
+   En SBCL se usa SB-EXT:SEED-RANDOM-STATE para que una misma
+   semilla genere la misma secuencia aleatoria bajo la misma
+   versión de SBCL y la misma configuración del proyecto."
+
+  (let ((safe-seed
+         (if (and seed
+                  (integerp seed)
+                  (>= seed 0))
+             seed
+             1)))
+
+    #+sbcl
+    (setf *random-state*
+          (sb-ext:seed-random-state safe-seed))
+
+    #-sbcl
+    (progn
+      (setf *random-state*
+            (make-random-state nil))
+      (loop repeat safe-seed do
+            (random 1.0)))
+
+    safe-seed))
+#+END_SRC
+
+
+* Mejores soluciones conocidas
+
+Esta sección permite asociar cada instancia CVRP con su mejor solución
+conocida, conocida como BKS.
+
+El BKS se usa para calcular el gap porcentual:
+
+- gap bajo significa que la solución encontrada está cerca de la mejor
+  solución conocida;
+- gap igual a cero significa que se alcanzó el BKS;
+- gap positivo indica cuánto peor es la solución respecto al BKS.
+
+Esta métrica es fundamental para comparar instancias de tamaños y costos
+diferentes.
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp
+(defun experiment-same-instance-p (a b)
+  (or
+   (eq a b)
+
+   (and (symbolp a)
+        (boundp a)
+        (eq (symbol-value a) b))
+
+   (and (symbolp b)
+        (boundp b)
+        (eq a (symbol-value b)))
+
+   (string=
+    (experiment-instance-name a)
+    (experiment-instance-name b))))
+
+
+(defun experiment-default-known-best (problem)
+  (let ((name
+         (experiment-instance-name problem)))
+
+    (cond
+      ((string= name "A-n32-k5") 784)
+      ((string= name "A-n33-k5") 661)
+      ((string= name "A-n33-k6") 742)
+      ((string= name "A-n37-k5") 669)
+      ((string= name "A-n65-k9") 1174)
+      ((string= name "A-n80-k10") 1763)
+      (t nil))))
+
+
+(defun get-known-best (problem config)
+  (or
+   (loop
+     for pair in (getf config :known-bests)
+     when (experiment-same-instance-p problem (car pair))
+       do (return (cdr pair)))
+
+   (experiment-default-known-best problem)))
+#+END_SRC
+
+
+* Ejecución individual
+
+Esta sección define cómo ejecutar una sola corrida de un algoritmo sobre una
+instancia.
+
+Las funciones principales son:
+
+- =run-single-vns-experiment=:
+  prepara los parámetros de una corrida VNS, llama a
+  =vrp::vns-run-experimental= y devuelve el resultado.
+
+- =run-single-ivns-experiment=:
+  prepara los parámetros de una corrida IVNS, llama a
+  =vrp::ivns-run-experimental= y devuelve el resultado.
+
+Ambas funciones reciben información similar para que luego los resultados
+puedan guardarse en el mismo formato CSV.
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp
+(defun experiment-solution-feasible-p
+       (solution
+        problem
+        penalty-factor)
+
+  "Determina si una solución es factible.
+
+   En esta infraestructura se considera factible si la evaluación
+   de la solución devuelve penalización cero. Si no se puede evaluar,
+   se devuelve NIL para no marcar como factible una solución dudosa."
+
+  (if solution
+
+      (handler-case
+
+          (multiple-value-bind
+                (cost distance penalty)
+
+              (vrp::ivns-evaluate-solution
+               solution
+               problem
+               penalty-factor)
+
+            (declare
+             (ignore cost distance))
+
+            (and (numberp penalty)
+                 (zerop penalty)))
+
+        (error ()
+          nil))
+
+      nil))
+
+(defun experiment-build-initial-solution
+       (problem
+        &key
+          (constructor :random))
+
+  "Construye una solución inicial común para una instancia.
+
+   Esta solución se genera una sola vez para un par instancia-semilla
+   y después se copia para cada algoritmo."
+  (let* ((real-problem
+          (if (symbolp problem)
+              (symbol-value problem)
+              problem))
+
+         (solution
+          (vrp::vrp-vns-make-initial-solution
+           real-problem
+           constructor)))
+
+    solution))
+
+
+(defun experiment-copy-solution (solution)
+
+  "Copia una solución VRP para evitar compartir objetos mutables.
+
+   VNS e IVNS deben recibir copias independientes de la misma solución
+   inicial, no el mismo objeto."
+  (if solution
+      (vrp::clone solution)
+      nil))
+
+(defun run-single-vns-experiment
+       (&key
+        problem
+        seed
+
+        initial-solution
+
+        max-iter
+        kmax
+        max-no-improve
+
+        shake-max-tries
+
+        vnd-mode
+        vnd-max-rounds
+        vnd-max-no-improve
+
+        known-best
+        time-limit-seconds
+
+        (penalty-factor 1000))
+
+  (initialize-seed seed)
+
+  (let ((real-problem
+         (if (symbolp problem)
+             (symbol-value problem)
+             problem)))
+
+    (let ((*package*
+           (find-package :vrp)))
+
+      (let ((result
+             (vrp::vns-run-experimental
+              :problem real-problem
+              :seed seed
+
+              :initial-solution initial-solution
+
+              :max-iter max-iter
+              :kmax kmax
+              :max-no-improve max-no-improve
+
+              :shake-max-tries shake-max-tries
+
+              :vnd-mode vnd-mode
+              :vnd-max-rounds vnd-max-rounds
+              :vnd-max-no-improve vnd-max-no-improve
+
+              :known-best known-best
+              :time-limit-seconds time-limit-seconds)))
+
+        ;; Normalización para que VNS tenga el mismo schema CSV que IVNS.
+        (setf (getf result :algorithm)
+              "vns")
+
+        (setf (getf result :known-best)
+              known-best)
+
+        (setf (getf result :max-iter)
+              max-iter)
+
+        (setf (getf result :kmax)
+              kmax)
+
+        (setf (getf result :max-no-improve)
+              max-no-improve)
+
+        (setf (getf result :shake-max-tries)
+              shake-max-tries)
+
+        ;; VNS no genera cadenas IVNS, por eso estas columnas van en cero.
+        (setf (getf result :generation-max-tries)
+              0)
+
+        (setf (getf result :generation-tries)
+              (or (getf result :generation-tries)
+                  0))
+
+        (setf (getf result :vnd-mode)
+              vnd-mode)
+
+        (setf (getf result :vnd-max-rounds)
+              vnd-max-rounds)
+
+        (setf (getf result :vnd-max-no-improve)
+              vnd-max-no-improve)
+
+        (setf (getf result :time-limit-seconds)
+              (or time-limit-seconds
+                  0.0))
+
+        (setf (getf result :invalid-neighbors)
+              (or (getf result :invalid-neighbors)
+                  0))
+
+        (setf (getf result :no-improvement-neighbors)
+              (or (getf result :no-improvement-neighbors)
+                  0))
+
+        (setf (getf result :timeout-neighbors)
+              (or (getf result :timeout-neighbors)
+                  0))
+
+        ;; Columnas IVNS no aplican para VNS.
+        (setf (getf result :ivns-max-neighborhood-seconds)
+              0.0)
+
+        (setf (getf result :reset-generated-strings-on-improvement-p)
+              nil)
+
+        (setf (getf result :ivns-candidates-per-iteration)
+              0)
+
+        (setf (getf result :ivns-candidate-selection-mode)
+              "none")
+
+        (setf (getf result :ivns-exploration-rate)
+              0.0)
+
+        (setf (getf result :ivns-candidates-generated)
+              0)
+
+        (setf (getf result :ivns-candidates-valid)
+              0)
+
+        (setf (getf result :ivns-candidates-timeout)
+              0)
+
+        (setf (getf result :ivns-candidates-invalid)
+              0)
+
+        (setf (getf result :ivns-candidates-no-improvement)
+              0)
+
+        (setf (getf result :ivns-candidates-selected)
+              0)
+
+        (setf (getf result :ivns-candidate-success-rate)
+              0.0)
+
+        ;; Factibilidad real si existe best-solution.
+        (setf (getf result :feasible)
+              (if (getf result :best-solution)
+                  (experiment-solution-feasible-p
+                   (getf result :best-solution)
+                   real-problem
+                   penalty-factor)
+                  (or (getf result :feasible)
+                      t)))
+
+        (setf (getf result :status)
+              (or (getf result :status)
+                  "ok"))
+
+        (setf (getf result :error)
+              (or (getf result :error)
+                  ""))
+
+        result))))
+
+(defun run-single-ivns-experiment
+       (&key
+          problem
+          seed
+
+          initial-solution
+
+          max-iter
+          kmax
+          max-no-improve
+
+          shake-max-tries
+
+          vnd-mode
+          vnd-max-rounds
+          vnd-max-no-improve
+
+          generation-max-tries
+          (ivns-max-neighborhood-seconds 0.50)
+          (reset-generated-strings-on-improvement-p t)
+
+          (penalty-factor 1000)
+
+          known-best
+          time-limit-seconds)
+
+  "Ejecuta una corrida IVNS individual.
+
+   En esta versión se permite recibir INITIAL-SOLUTION para que IVNS pueda
+   partir de la misma solución inicial que VNS.
+
+   RESET-GENERATED-STRINGS-ON-IMPROVEMENT-P controla si, al aceptar una
+   mejora, IVNS limpia el historial de cadenas usadas en la corrida. Esto
+   permite que la política sea parte de la configuración experimental."
+  (initialize-seed seed)
+  (when (fboundp 'ivns::configure-ivns-complexity-profile)
+    (unless (ivns::get-config :profile nil)
+      (ivns::configure-ivns-complexity-profile :baseline)))
+
+  (when (fboundp 'ivns::clear-generated-strings)
+    (ivns::clear-generated-strings))
+
+  (let ((real-problem
+         (if (symbolp problem)
+             (symbol-value problem)
+             problem)))
+
+    (let ((*package*
+           (find-package :vrp)))
+
+      (let ((result
+             (vrp::ivns-run-experimental
+
+              real-problem
+
+              :seed seed
+
+              :initial-solution initial-solution
+
+              :max-iter max-iter
+              :kmax kmax
+              :max-no-improve max-no-improve
+
+              :shake-max-tries shake-max-tries
+
+              :vnd-mode vnd-mode
+              :vnd-max-rounds vnd-max-rounds
+              :vnd-max-no-improve vnd-max-no-improve
+
+              :generation-max-tries generation-max-tries
+              :ivns-max-neighborhood-seconds ivns-max-neighborhood-seconds
+              :reset-generated-strings-on-improvement-p reset-generated-strings-on-improvement-p
+
+              :penalty-factor penalty-factor
+
+              :known-best known-best
+              :time-limit-seconds time-limit-seconds
+
+              :quiet t)))
+
+        ;; Normalización del resultado IVNS para CSV estable.
+        (setf (getf result :algorithm)
+              "ivns")
+
+        (setf (getf result :known-best)
+              known-best)
+
+        (setf (getf result :max-iter)
+              max-iter)
+
+        (setf (getf result :kmax)
+              kmax)
+
+        (setf (getf result :max-no-improve)
+              max-no-improve)
+
+        (setf (getf result :shake-max-tries)
+              shake-max-tries)
+
+        (setf (getf result :generation-max-tries)
+              generation-max-tries)
+
+        (setf (getf result :vnd-mode)
+              vnd-mode)
+
+        (setf (getf result :vnd-max-rounds)
+              vnd-max-rounds)
+
+        (setf (getf result :vnd-max-no-improve)
+              vnd-max-no-improve)
+
+        (setf (getf result :time-limit-seconds)
+              (or time-limit-seconds
+                  0.0))
+
+        (setf (getf result :ivns-max-neighborhood-seconds)
+              ivns-max-neighborhood-seconds)
+
+        (setf (getf result :reset-generated-strings-on-improvement-p)
+              reset-generated-strings-on-improvement-p)
+
+        ;; Estas columnas todavía no se usan en esta acción.
+        (setf (getf result :ivns-candidates-per-iteration)
+              0)
+
+        (setf (getf result :ivns-candidate-selection-mode)
+              "none")
+
+        (setf (getf result :ivns-exploration-rate)
+              0.0)
+
+        (setf (getf result :ivns-candidates-generated)
+              0)
+
+        (setf (getf result :ivns-candidates-valid)
+              0)
+
+        (setf (getf result :ivns-candidates-timeout)
+              0)
+
+        (setf (getf result :ivns-candidates-invalid)
+              0)
+
+        (setf (getf result :ivns-candidates-no-improvement)
+              0)
+
+        (setf (getf result :ivns-candidates-selected)
+              0)
+
+        (setf (getf result :ivns-candidate-success-rate)
+              0.0)
+
+        (setf (getf result :invalid-neighbors)
+              (or (getf result :invalid-neighbors)
+                  0))
+
+        (setf (getf result :no-improvement-neighbors)
+              (or (getf result :no-improvement-neighbors)
+                  0))
+
+        (setf (getf result :timeout-neighbors)
+              (or (getf result :timeout-neighbors)
+                  0))
+
+        (setf (getf result :status)
+              (or (getf result :status)
+                  "ok"))
+
+        (setf (getf result :error)
+              (or (getf result :error)
+                  ""))
+
+        result))))
+#+END_SRC
+
+
+* Exportación de resultados
+
+Esta sección convierte los resultados devueltos por VNS e IVNS en filas CSV.
+
+Funciones principales:
+
+- =append-summary-result=:
+  guarda en =summary.csv= las métricas generales de una corrida.
+
+- =append-trace-result=:
+  guarda en =trace.csv= las métricas de cada iteración.
+
+La separación entre resumen y traza permite revisar los resultados en dos
+niveles:
+
+- una vista compacta por corrida;
+- una vista detallada por iteración.
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp
+(defun experiment-value (plist key default)
+  "Devuelve el valor asociado a KEY dentro de PLIST.
+   Si KEY no existe, devuelve DEFAULT."
+  (let ((value
+         (getf plist key :missing)))
+
+    (if (eq value :missing)
+        default
+        value)))
+
+
+(defun experiment-number (value &optional (default 0))
+  "Convierte VALUE en número seguro para exportación."
+  (cond
+    ((numberp value)
+     value)
+
+    ((null value)
+     default)
+
+    (t
+     default)))
+
+
+(defun experiment-bool-string (value)
+  "Convierte un valor booleano Lisp a texto CSV."
+  (if value
+      "true"
+      "false"))
+
+
+(defun experiment-compute-gap (best known-best)
+  "Calcula el gap porcentual respecto al mejor valor conocido.
+
+   gap_percent = 100 * (best_cost - known_best) / known_best"
+  (if (and (numberp best)
+           (numberp known-best)
+           (> known-best 0))
+      (* 100.0
+         (/ (- best known-best)
+            known-best))
+      0.0))
+
+
+(defun experiment-trace-time (row)
+  "Obtiene el tiempo acumulado de una fila de trace."
+  (or
+   (getf row :elapsed-time-seconds)
+   (getf row :elapsed-time)
+   0))
+
+
+(defun experiment-average-trace-key (trace key)
+  "Calcula el promedio de KEY sobre las filas de TRACE."
+  (let ((values
+         (remove-if-not
+          #'numberp
+          (mapcar
+           (lambda (row)
+             (getf row key))
+           trace))))
+
+    (if values
+        (/ (reduce #'+ values)
+           (length values))
+        0.0)))
+
+
+(defun experiment-total-neighbors (trace)
+  "Suma los vecinos evaluados registrados en TRACE."
+  (let ((values
+         (remove-if-not
+          #'numberp
+          (mapcar
+           (lambda (row)
+             (getf row :neighbors-evaluated))
+           trace))))
+
+    (if values
+        (reduce #'+ values)
+        0)))
+
+
+(defun experiment-trace-no-improvement-count (trace)
+  "Cuenta vecinos evaluados que no fueron aceptados como mejora.
+
+   Se considera no_improvement una fila con estado ok, accepted NIL
+   y al menos un vecino evaluado."
+  (count-if
+   (lambda (row)
+     (and
+      (string=
+       (string-downcase
+        (format nil "~a"
+                (or (getf row :status)
+                    "ok")))
+       "ok")
+      (not (getf row :accepted))
+      (> (experiment-number
+          (getf row :neighbors-evaluated)
+          0)
+         0)))
+   trace))
+
+(defun experiment-trace-status-count (trace status)
+  "Cuenta filas del trace con un estado determinado."
+  (count-if
+   (lambda (row)
+     (string=
+      (string-downcase
+       (format nil "~a"
+               (or (getf row :status)
+                   "")))
+      (string-downcase
+       (format nil "~a" status))))
+   trace))
+
+
+(defun experiment-trace-key-sum (trace key)
+  "Suma valores numéricos de KEY en TRACE."
+  (let ((values
+         (remove-if-not
+          #'numberp
+          (mapcar
+           (lambda (row)
+             (getf row key))
+           trace))))
+
+    (if values
+        (reduce #'+ values)
+        0)))
+
+
+(defun experiment-reject-count (trace reject-key)
+  "Cuenta rechazos IVNS por motivo."
+  (count-if
+   (lambda (row)
+     (eq (getf row :ivns-filter-reject-key)
+         reject-key))
+   trace))
+
+
+(defun experiment-safe-ratio (num den)
+  "Calcula NUM/DEN evitando división por cero."
+  (if (and (numberp num)
+           (numberp den)
+           (> den 0))
+      (/ num den)
+      0.0))
+      
+(defun append-summary-result
+       (path
+        result
+        instance
+        seed)
+
+  "Agrega una fila a summary.csv.
+
+   Esta fila resume una corrida completa. El orden de columnas debe coincidir
+   exactamente con INITIALIZE-SUMMARY-CSV."
+  (with-open-file (stream path
+                          :direction :output
+                          :if-exists :append
+                          :if-does-not-exist :create)
+
+    (let* ((algorithm
+            (experiment-algorithm-name
+             (getf result :algorithm)))
+
+           (run-id
+            (make-run-id
+             algorithm
+             instance
+             seed))
+
+           (trace
+            (or (getf result :trace)
+                nil))
+
+           (known-best
+            (or (getf result :known-best)
+                (experiment-default-known-best instance)
+                ""))
+
+           (initial-cost
+            (experiment-value result :initial-cost 0))
+
+           (best-cost
+            (experiment-value result :best-cost 0))
+
+           (final-cost
+            (or (getf result :final-cost)
+                best-cost))
+
+           (gap
+            (if (and (numberp best-cost)
+                     (numberp known-best)
+                     (> known-best 0))
+                (experiment-compute-gap best-cost known-best)
+                (experiment-value result :gap 0.0)))
+
+           (iterations
+            (experiment-value result :iterations 0))
+
+           (accepted-improvements
+            (experiment-value result :accepted-improvements 0))
+
+           (invalid-neighbors
+            (experiment-value result :invalid-neighbors 0))
+
+           (no-improvement-neighbors
+            (experiment-value result :no-improvement-neighbors 0))
+
+           (timeout-neighbors
+            (experiment-value result :timeout-neighbors 0))
+
+           (neighbors-evaluated
+            (or (getf result :neighbors-evaluated)
+                (experiment-total-neighbors trace)
+                0))
+
+           (generation-tries
+            (experiment-value result :generation-tries 0))
+
+           (elapsed-time
+            (or (getf result :elapsed-time-seconds)
+                (getf result :time)
+                0))
+
+           (best-iteration
+            (or (getf result :best-iteration)
+                (if (> accepted-improvements 0)
+                    iterations
+                    0)))
+
+           (stagnation-iterations
+            (experiment-value result :stagnation-iterations 0))
+
+           (termination-reason
+            (or (getf result :termination-reason)
+                (cond
+                  ((getf result :stop-by-time)
+                   "time_limit")
+
+                  ((and (numberp iterations)
+                        (numberp (getf result :max-iter))
+                        (>= iterations
+                            (getf result :max-iter)))
+                   "max_iter")
+
+                  (t
+                   "completed"))))
+
+           (feasible
+            (experiment-bool-string
+             (or (getf result :feasible)
+                 (getf result :best-solution))))
+
+           (status
+            (or (getf result :status)
+                "ok"))
+
+           (error
+            (or (getf result :error)
+                ""))
+
+           (ivns-string-length-avg
+            (experiment-average-trace-key
+             trace
+             :ivns-string-length))
+
+           (ivns-complexity-avg
+            (experiment-average-trace-key
+             trace
+             :ivns-complexity-score))
+
+           (ivns-candidates-generated
+            (experiment-value result :ivns-candidates-generated 0))
+
+           (ivns-candidates-selected
+            (experiment-value result :ivns-candidates-selected 0))
+
+           (ivns-candidate-success-rate
+            (or (getf result :ivns-candidate-success-rate)
+                (experiment-safe-ratio
+                 ivns-candidates-selected
+                 ivns-candidates-generated))))
+
+      (write-csv-row
+       stream
+       (list
+        run-id
+
+        algorithm
+        (experiment-instance-name instance)
+        seed
+
+        known-best
+
+        (experiment-value result :max-iter "")
+        (experiment-value result :kmax "")
+        (experiment-value result :max-no-improve "")
+
+        (experiment-value result :shake-max-tries "")
+        (experiment-value result :generation-max-tries "")
+
+        (experiment-value result :vnd-mode "")
+        (experiment-value result :vnd-max-rounds "")
+        (experiment-value result :vnd-max-no-improve "")
+
+        (experiment-value result :time-limit-seconds "")
+        termination-reason
+
+        initial-cost
+        (experiment-value result :initial-solution-signature "")
+        (experiment-bool-string
+         (getf result :initial-solution-shared-p))
+        (experiment-value result :initial-solution-source "unknown")
+
+        best-cost
+        final-cost
+
+        gap
+
+        iterations
+        accepted-improvements
+
+        invalid-neighbors
+        no-improvement-neighbors
+        timeout-neighbors
+
+        neighbors-evaluated
+        generation-tries
+
+        elapsed-time
+
+        best-iteration
+        stagnation-iterations
+
+        feasible
+        status
+        error
+
+        ivns-string-length-avg
+        ivns-complexity-avg
+
+        (experiment-value result :ivns-max-neighborhood-seconds "")
+        (experiment-bool-string
+         (experiment-value result :reset-generated-strings-on-improvement-p nil))
+
+        (experiment-value result :ivns-candidates-per-iteration 0)
+        (experiment-value result :ivns-candidate-selection-mode "")
+        (experiment-value result :ivns-exploration-rate 0)
+        ivns-candidates-generated
+        (experiment-value result :ivns-candidates-valid 0)
+        (experiment-value result :ivns-candidates-timeout 0)
+        (experiment-value result :ivns-candidates-invalid 0)
+        (experiment-value result :ivns-candidates-no-improvement 0)
+        ivns-candidates-selected
+        ivns-candidate-success-rate
+
+        (experiment-value result :ivns-strings-generated-total 0)
+        (experiment-value result :ivns-strings-valid-total 0)
+        (experiment-value result :ivns-strings-invalid-total 0)
+        (experiment-value result :ivns-strings-evaluated-total 0)
+        (experiment-value result :ivns-strings-selected-total 0)
+        (experiment-value result :ivns-strings-accepted-total 0)
+        (experiment-value result :ivns-unique-strings-total 0)
+
+        (experiment-value result :ivns-reject-too-many-r 0)
+        (experiment-value result :ivns-reject-too-short 0)
+        (experiment-value result :ivns-reject-too-long 0)
+        (experiment-value result :ivns-reject-unbalanced 0)
+        (experiment-value result :ivns-reject-missing-required-symbol 0)
+        (experiment-value result :ivns-reject-forbidden-expensive-pattern 0)
+        (experiment-value result :ivns-reject-semantic-invalid 0)
+        (experiment-value result :ivns-reject-duplicated-string 0)
+        (experiment-value result :ivns-reject-generation-limit-reached 0)
+        (experiment-value result :ivns-reject-unknown 0))))))
+
+(defun append-trace-result
+       (path
+        rows
+        algorithm
+        instance
+        seed)
+
+  (with-open-file (stream path
+                          :direction :output
+                          :if-exists :append
+                          :if-does-not-exist :create)
+
+    (let ((run-id
+           (make-run-id
+            algorithm
+            instance
+            seed))
+
+          (algorithm-name
+           (experiment-algorithm-name algorithm)))
+
+      (dolist (row rows)
+
+        (write-csv-row
+         stream
+         (list
+          run-id
+
+          algorithm-name
+          (experiment-instance-name instance)
+          seed
+
+          (experiment-value row :iter 0)
+          (experiment-value row :k 0)
+
+          (experiment-value row :current-cost 0)
+          (experiment-value row :best-cost 0)
+
+          (experiment-value row :delta 0)
+
+          (experiment-bool-string
+           (getf row :accepted))
+
+          (experiment-bool-string
+           (getf row :shake-applied))
+
+          (experiment-value row :shake-tries 0)
+          (experiment-value row :shake-invalid 0)
+
+          (experiment-value row :vnd-rounds 0)
+          (experiment-value row :vnd-improvements 0)
+
+          (experiment-value row :neighbors-evaluated 0)
+
+          (experiment-value row :ivns-string "")
+          (experiment-value row :ivns-string-length 0)
+
+          (experiment-value row :ivns-complexity-score 0)
+
+          (experiment-value row :ivns-generation-tries 0)
+
+          (experiment-value row :ivns-strings-generated-iter 0)
+          (experiment-value row :ivns-strings-valid-iter 0)
+          (experiment-value row :ivns-strings-invalid-iter 0)
+          (experiment-value row :ivns-strings-evaluated-iter 0)
+          (experiment-value row :ivns-strings-selected-iter 0)
+          (experiment-value row :ivns-strings-accepted-iter 0)
+          (experiment-value row :ivns-unique-strings-iter 0)
+          (experiment-value row :ivns-filter-reject-reason "")
+
+          (experiment-trace-time row)
+
+          (experiment-value row :status "ok")
+          (experiment-value row :error "")))))))
+#+END_SRC
+
+
+* Ejecución masiva
+
+Esta sección ejecuta varias corridas automáticamente.
+
+La función principal es =run-all-experiments=.
+
+Esta función recorre:
+
+- algoritmos;
+- instancias;
+- semillas.
+
+Por cada combinación ejecuta una corrida individual y guarda los resultados
+en los archivos CSV configurados.
+
+La función =run-thesis-experiments= sirve como punto de entrada para lanzar
+la batería definida en la configuración por defecto.
+
+Funciones auxiliares
+
+=experiment-build-initial-solution=: construye una solución inicial común para una instancia antes de ejecutar los algoritmos. 
+Se usa cuando se desea comparar VNS e IVNS partiendo del mismo punto inicial.
+
+=experiment-copy-solution=: crea una copia independiente de una solución inicial. 
+Permite entregar la misma solución base a VNS e IVNS sin que ambos algoritmos compartan el mismo objeto mutable.
+
+=experiment-solution-signature=: obtiene una firma textual estable de una solución inicial. 
+Esta firma permite verificar en los CSV si dos corridas comenzaron desde la misma solución.
+
+=experiment-shared-initial-solution-p=: compara las firmas iniciales reportadas por dos resultados experimentales. 
+Se usa para comprobar si el pareo por solución inicial se cumplió realmente.
+
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp
+(defun experiment-build-initial-solution
+       (problem
+        &key
+          (constructor :random))
+
+  "Construye una solución inicial común para experimentos pareados.
+
+   Esta función se usa cuando se desea que VNS e IVNS partan de la misma
+   solución inicial para una misma instancia y una misma semilla."
+  (let* ((real-problem
+          (if (symbolp problem)
+              (symbol-value problem)
+              problem))
+
+         (solution
+          (cond
+            ((or (eq constructor :random)
+                 (null constructor))
+             (vrp::vrp-vns-make-initial-solution
+              real-problem
+              :random))
+
+            ((functionp constructor)
+             (funcall constructor
+                      real-problem))
+
+            (t
+             (vrp::vrp-vns-make-initial-solution
+              real-problem
+              constructor)))))
+
+    solution))
+
+
+(defun experiment-copy-solution (solution)
+
+  "Copia una solución VRP.
+
+   Se usa para que VNS e IVNS reciban copias independientes de la misma
+   solución inicial. Esto evita que un algoritmo modifique el mismo objeto
+   que luego utilizaría el otro."
+  (if solution
+      (vrp::clone solution)
+      nil))
+
+(defun experiment-solution-signature (solution)
+
+  "Devuelve una firma textual estable de una solución inicial.
+
+   La firma permite comprobar si dos corridas comenzaron desde la misma
+   solución. Si la solución es NIL, devuelve una cadena vacía."
+  (if solution
+      (vrp::vrp-vns-solution-signature solution)
+      ""))
+
+
+(defun experiment-shared-initial-solution-p
+       (vns-result
+        ivns-result)
+
+  "Comprueba si dos resultados reportan la misma firma inicial.
+
+   Devuelve T si las firmas iniciales de VNS e IVNS coinciden."
+  (let ((vns-signature
+         (getf vns-result :initial-solution-signature))
+
+        (ivns-signature
+         (getf ivns-result :initial-solution-signature)))
+
+    (and vns-signature
+         ivns-signature
+         (string= vns-signature
+                  ivns-signature))))
+
+(defun run-all-experiments
+       (&optional
+        (config *default-experiment-config*))
+
+  "Ejecuta un conjunto de experimentos VNS/IVNS.
+
+   Cuando SHARED-INITIAL-SOLUTION-P es T y se ejecutan VNS e IVNS juntos,
+   se genera una única solución inicial por cada par instancia-semilla y se
+   entrega una copia independiente a cada algoritmo. Además, se fuerza en el
+   resultado de ambos algoritmos la misma firma inicial, para que el CSV
+   permita verificar el pareo real."
+  (let* ((summary-file
+          (getf config :summary-file "results/summary.csv"))
+
+         (trace-file
+          (getf config :trace-file "results/trace.csv"))
+
+         (output-dir
+          (getf config :output-dir "results"))
+
+         (algorithms
+          (getf config :algorithms '(:vns :ivns)))
+
+         (instances
+          (getf config :instances))
+
+         (seeds
+          (getf config :seeds '(1)))
+
+         (max-iter
+          (getf config :max-iter 20))
+
+         (kmax
+          (getf config :kmax 5))
+
+         (max-no-improve
+          (getf config :max-no-improve 10))
+
+         (shake-max-tries
+          (getf config :shake-max-tries 20))
+
+         (vnd-mode
+          (getf config :vnd-mode :best))
+
+         (vnd-max-rounds
+          (getf config :vnd-max-rounds 20))
+
+         (vnd-max-no-improve
+          (getf config :vnd-max-no-improve 10))
+
+         (generation-max-tries
+          (getf config :generation-max-tries 10))
+
+         (ivns-max-neighborhood-seconds
+          (getf config :ivns-max-neighborhood-seconds 0.50))
+
+         (reset-generated-strings-on-improvement-p
+          (getf config :reset-generated-strings-on-improvement-p t))
+
+         (penalty-factor
+          (getf config :penalty-factor 1000))
+
+         ;; NIL significa sin límite global de tiempo.
+         (time-limit-seconds
+          (getf config :time-limit-seconds nil))
+
+         (shared-initial-solution-p
+          (getf config :shared-initial-solution-p nil)))
+
+    (ensure-results-directory
+     output-dir)
+
+    (initialize-summary-csv summary-file)
+    (initialize-trace-csv trace-file)
+
+    (dolist (instance instances)
+
+      (dolist (seed seeds)
+
+        (let* ((known-best
+                (get-known-best
+                 instance
+                 config))
+
+               (use-shared-initial
+                (and shared-initial-solution-p
+                     (not (null (member :vns algorithms)))
+                     (not (null (member :ivns algorithms)))))
+
+               (initial-source
+                (if use-shared-initial
+                    "shared_by_seed"
+                    "generated_inside_algorithm"))
+
+               (shared-initial-solution
+                (when use-shared-initial
+                  (initialize-seed seed)
+                  (experiment-build-initial-solution
+                   instance
+                   :constructor :random)))
+
+               (shared-initial-signature
+                (if shared-initial-solution
+                    (experiment-solution-signature
+                     shared-initial-solution)
+                    "")))
+
+          (dolist (algorithm algorithms)
+
+            (format t "~%====================================")
+            (format t "~%Algorithm: ~a" algorithm)
+            (format t "~%Running instance: ~a" instance)
+            (format t "~%Seed: ~a" seed)
+            (format t "~%Shared initial solution: ~a" use-shared-initial)
+            (format t "~%====================================~%")
+
+            (let* ((initial-copy
+                    (when shared-initial-solution
+                      (experiment-copy-solution
+                       shared-initial-solution)))
+
+                   (result
+                    (ecase algorithm
+
+                      (:vns
+                       (run-single-vns-experiment
+                        :problem instance
+                        :seed seed
+
+                        :initial-solution initial-copy
+
+                        :max-iter max-iter
+                        :kmax kmax
+                        :max-no-improve max-no-improve
+
+                        :shake-max-tries shake-max-tries
+
+                        :vnd-mode vnd-mode
+                        :vnd-max-rounds vnd-max-rounds
+                        :vnd-max-no-improve vnd-max-no-improve
+
+                        :known-best known-best
+                        :time-limit-seconds time-limit-seconds
+
+                        :penalty-factor penalty-factor))
+
+                      (:ivns
+                       (run-single-ivns-experiment
+                        :problem instance
+                        :seed seed
+
+                        :initial-solution initial-copy
+
+                        :max-iter max-iter
+                        :kmax kmax
+                        :max-no-improve max-no-improve
+
+                        :shake-max-tries shake-max-tries
+
+                        :vnd-mode vnd-mode
+                        :vnd-max-rounds vnd-max-rounds
+                        :vnd-max-no-improve vnd-max-no-improve
+
+                        :generation-max-tries generation-max-tries
+
+                        :ivns-max-neighborhood-seconds
+                        ivns-max-neighborhood-seconds
+
+                        :reset-generated-strings-on-improvement-p
+                        reset-generated-strings-on-improvement-p
+
+                        :known-best known-best
+                        :time-limit-seconds time-limit-seconds
+
+                        :penalty-factor penalty-factor)))))
+
+              ;; Forzar metadatos de solución inicial compartida.
+              ;; Esto evita que VNS e IVNS escriban valores distintos
+              ;; aunque internamente devuelvan campos diferentes.
+              (when use-shared-initial
+                (setf (getf result :initial-solution-signature)
+                      shared-initial-signature)
+
+                (setf (getf result :initial-solution-shared-p)
+                      t)
+
+                (setf (getf result :initial-solution-source)
+                      initial-source))
+
+              ;; Si no se usa solución compartida, asegurar valores mínimos.
+              (unless use-shared-initial
+                (setf (getf result :initial-solution-signature)
+                      (or (getf result :initial-solution-signature)
+                          ""))
+
+                (setf (getf result :initial-solution-shared-p)
+                      (or (getf result :initial-solution-shared-p)
+                          nil))
+
+                (setf (getf result :initial-solution-source)
+                      (or (getf result :initial-solution-source)
+                          "generated_inside_algorithm")))
+
+              (append-summary-result
+               summary-file
+               result
+               instance
+               seed)
+
+              (append-trace-result
+               trace-file
+               (getf result :trace)
+               (getf result :algorithm)
+               instance
+               seed))))))
+
+    (format t "~%====================================")
+    (format t "~%ALL EXPERIMENTS FINISHED")
+    (format t "~%====================================~%")))
+#+END_SRC
+
+
+* Runners principales
+
+Esta sección contiene runners de alto nivel utilizados para lanzar
+experimentos completos de tesis.
+
+La función =run-thesis-experiments= permite ejecutar tanto pruebas rápidas
+como corridas oficiales.
+
+Por defecto se usan pocas semillas para facilitar pruebas de carga y
+depuración. Las corridas oficiales de tesis deben especificar explícitamente
+30 semillas por instancia y nombres de archivo que indiquen la configuración
+experimental utilizada.
+#+BEGIN_SRC lisp :tangle ../src/experiments-vns-ivns.lisp
+(defun run-thesis-experiments
+       (&key
+        (algorithms '(:vns :ivns))
+
+        (instances
+         (list
+          vrp::a-n33-k5-problem
+          vrp::a-n65-k9-problem
+          vrp::a-n80-k10-problem))
+
+        (seeds '(1 2 3 4 5))
+
+        (shared-initial-solution-p nil)
+
+        (max-iter 20)
+        (kmax 5)
+        (max-no-improve 10)
+
+        (shake-max-tries 20)
+
+        (vnd-mode :best)
+        (vnd-max-rounds 20)
+        (vnd-max-no-improve 10)
+
+        (generation-max-tries 10)
+
+        (ivns-max-neighborhood-seconds 0.50)
+        (reset-generated-strings-on-improvement-p t)
+
+        (penalty-factor 1000)
+
+        ;; NIL = sin límite global de tiempo.
+        (time-limit-seconds nil)
+
+        (summary-file "results/summary.csv")
+        (trace-file "results/trace.csv"))
+
+  "Función principal para lanzar experimentos de tesis."
+  
+  (run-all-experiments
+   (list
+    :algorithms algorithms
+
+    :instances instances
+
+    :known-bests
+    '((vrp::a-n33-k5-problem . 661)
+      (vrp::a-n65-k9-problem . 1174)
+      (vrp::a-n80-k10-problem . 1763))
+
+    :seeds seeds
+
+    :shared-initial-solution-p shared-initial-solution-p
+
+    :max-iter max-iter
+    :kmax kmax
+    :max-no-improve max-no-improve
+
+    :shake-max-tries shake-max-tries
+
+    :vnd-mode vnd-mode
+    :vnd-max-rounds vnd-max-rounds
+    :vnd-max-no-improve vnd-max-no-improve
+
+    :generation-max-tries generation-max-tries
+
+    :ivns-max-neighborhood-seconds
+    ivns-max-neighborhood-seconds
+
+    :reset-generated-strings-on-improvement-p
+    reset-generated-strings-on-improvement-p
+
+    :penalty-factor penalty-factor
+
+    :time-limit-seconds time-limit-seconds
+
+    :output-dir "results"
+
+    :summary-file summary-file
+    :trace-file trace-file)))
+
+(defun run-official-vns-ivns-comparison
+       (&key
+          (instances
+           (list vrp::a-n33-k5-problem
+                 vrp::a-n65-k9-problem
+                 vrp::a-n80-k10-problem))
+
+          (seeds
+           (loop for i from 1 to 30 collect i))
+
+          (max-iter 20)
+          (kmax 2)
+          (max-no-improve 10)
+
+          (shake-max-tries 5)
+
+          (generation-max-tries 30)
+
+          (ivns-max-neighborhood-seconds 1.00)
+          (reset-generated-strings-on-improvement-p t)
+
+          (vnd-mode :best)
+          (vnd-max-rounds 5)
+          (vnd-max-no-improve 3)
+
+          (shared-initial-solution-p t)
+
+          (summary-file
+           "results/summary-vns-ivns-official-3inst-30seeds.csv")
+
+          (trace-file
+           "results/trace-vns-ivns-official-3inst-30seeds.csv"))
+
+  "Ejecuta la comparación oficial entre VNS e IVNS.
+
+   Esta función corresponde al experimento confirmatorio principal de la
+   tesis. No incluye variantes exploratorias como candidatos múltiples,
+   perfiles EFG o estrategias especiales de selección de candidatos.
+
+   Si SHARED-INITIAL-SOLUTION-P es T, VNS e IVNS parten de una copia de la
+   misma solución inicial para cada par instancia-semilla.
+
+   RESET-GENERATED-STRINGS-ON-IMPROVEMENT-P activa o desactiva el reinicio
+   del historial de cadenas IVNS cada vez que se acepta una mejora."
+  (run-thesis-experiments
+   :algorithms
+   (list :vns :ivns)
+
+   :instances
+   instances
+
+   :seeds
+   seeds
+
+   :shared-initial-solution-p
+   shared-initial-solution-p
+
+   :max-iter
+   max-iter
+
+   :kmax
+   kmax
+
+   :max-no-improve
+   max-no-improve
+
+   :shake-max-tries
+   shake-max-tries
+
+   :generation-max-tries
+   generation-max-tries
+
+   :ivns-max-neighborhood-seconds
+   ivns-max-neighborhood-seconds
+
+   :reset-generated-strings-on-improvement-p
+   reset-generated-strings-on-improvement-p
+
+   :vnd-mode
+   vnd-mode
+
+   :vnd-max-rounds
+   vnd-max-rounds
+
+   :vnd-max-no-improve
+   vnd-max-no-improve
+
+   :summary-file
+   summary-file
+
+   :trace-file
+   trace-file))
+
+;;;; ============================================================
+;;;; Runners para comparar variantes de selección IVNS
+;;;; ============================================================
+
+(defun experiment-budget-label (budget)
+  "Convierte 0.50 en 0p50 para nombres de archivos."
+  (substitute #\p #\. (format nil "~,2f" budget)))
+
+(defun run-ivns-selection-variants
+       (&key
+          (instances
+           (list vrp::a-n33-k5-problem
+                 vrp::a-n65-k9-problem
+                 vrp::a-n80-k10-problem))
+
+          (seeds
+           (loop for i from 1 to 5 collect i))
+
+          (budget 0.50)
+
+          (max-iter 20)
+          (kmax 2)
+          (max-no-improve 10)
+          (shake-max-tries 5)
+          (generation-max-tries 20)
+
+          (vnd-mode :best)
+          (vnd-max-rounds 5)
+          (vnd-max-no-improve 3)
+
+          (exploration-rate 0.30)
+
+          (output-dir "results/"))
+
+  "Ejecuta varias variantes de selección IVNS.
+
+   Variantes:
+   - single
+   - first-valid
+   - best
+   - mixed
+
+   Todas usan el mismo VND, la misma evaluación y la misma aceptación.
+   Solo cambia la forma de seleccionar la cadena IVNS usada como shake."
+
+  (ensure-directories-exist output-dir)
+
+  (let* ((budget-label (experiment-budget-label budget))
+
+         (variants
+          (list
+           (list :name "single"
+                 :mode :single
+                 :candidates 1
+                 :exploration-rate exploration-rate)
+
+           (list :name "first-valid"
+                 :mode :first-valid
+                 :candidates 5
+                 :exploration-rate exploration-rate)
+
+           (list :name "best"
+                 :mode :best
+                 :candidates 5
+                 :exploration-rate exploration-rate)
+
+           (list :name "mixed"
+                 :mode :mixed
+                 :candidates 5
+                 :exploration-rate exploration-rate))))
+
+    (dolist (variant variants)
+
+      (let* ((name (getf variant :name))
+             (mode (getf variant :mode))
+             (candidates (getf variant :candidates))
+             (rate (getf variant :exploration-rate))
+
+             (summary-file
+              (format nil "~asummary-ivns-select-~a-~a-3inst-~aseeds.csv"
+                      output-dir
+                      name
+                      budget-label
+                      (length seeds)))
+
+             (trace-file
+              (format nil "~atrace-ivns-select-~a-~a-3inst-~aseeds.csv"
+                      output-dir
+                      name
+                      budget-label
+                      (length seeds))))
+
+        (format t "~%====================================~%")
+        (format t "IVNS selection variant: ~a~%" name)
+        (format t "Mode: ~a~%" mode)
+        (format t "Candidates per iteration: ~a~%" candidates)
+        (format t "Budget: ~a~%" budget)
+        (format t "Exploration rate: ~a~%" rate)
+        (format t "Summary: ~a~%" summary-file)
+        (format t "Trace: ~a~%" trace-file)
+        (format t "====================================~%")
+
+        ;; Se configuran las variables globales de IVNS.
+        ;; Así no es necesario modificar run-thesis-experiments.
+        (setf vrp::*ivns-candidates-per-iteration-default*
+              candidates)
+
+        (setf vrp::*ivns-candidate-selection-mode-default*
+              mode)
+
+        (setf vrp::*ivns-exploration-rate-default*
+              rate)
+
+        (run-thesis-experiments
+         :algorithms (list :ivns)
+         :instances instances
+         :seeds seeds
+         :max-iter max-iter
+         :kmax kmax
+         :max-no-improve max-no-improve
+         :shake-max-tries shake-max-tries
+         :generation-max-tries generation-max-tries
+         :ivns-max-neighborhood-seconds budget
+         :vnd-mode vnd-mode
+         :vnd-max-rounds vnd-max-rounds
+         :vnd-max-no-improve vnd-max-no-improve
+         :summary-file summary-file
+         :trace-file trace-file))))
+
+  ;; Restaurar comportamiento básico al final.
+  (setf vrp::*ivns-candidates-per-iteration-default* 1)
+  (setf vrp::*ivns-candidate-selection-mode-default* :single)
+  (setf vrp::*ivns-exploration-rate-default* 0.30)
+
+  (format t "~%====================================~%")
+  (format t "IVNS selection variants finished.~%")
+  (format t "====================================~%"))
+
+(defun run-ivns-selection-variants-smoke
+       (&key
+          (budget 0.50))
+  "Prueba rápida de variantes IVNS con 5 semillas."
+  (run-ivns-selection-variants
+   :seeds (loop for i from 1 to 5 collect i)
+   :budget budget
+   :max-iter 20
+   :kmax 2
+   :max-no-improve 10
+   :shake-max-tries 5
+   :generation-max-tries 20
+   :vnd-mode :best
+   :vnd-max-rounds 5
+   :vnd-max-no-improve 3))
+
+(defun run-ivns-selection-variants-official
+       (&key
+          (budget 0.50))
+  "Corrida oficial de variantes IVNS con 30 semillas."
+  (run-ivns-selection-variants
+   :seeds (loop for i from 1 to 30 collect i)
+   :budget budget
+   :max-iter 20
+   :kmax 2
+   :max-no-improve 10
+   :shake-max-tries 5
+   :generation-max-tries 20
+   :vnd-mode :best
+   :vnd-max-rounds 5
+   :vnd-max-no-improve 3))
+
+#+END_SRC
+
+
+* Núcleo experimental de IVNS
+
+Esta sección define la versión experimental de IVNS.
+
+El bloque tangla hacia:
+
+- =../src/ivns-experiments.lisp=
+
+Esta versión no solo ejecuta IVNS, sino que también registra métricas
+compatibles con la infraestructura experimental.
+
+El flujo básico de una iteración IVNS es:
+
+1. generar una cadena IVNS;
+2. validar la cadena;
+3. traducirla a un criterio VRP;
+4. aplicar el criterio sobre la solución actual;
+5. evaluar el vecino generado;
+6. aplicar VND si está habilitado;
+7. decidir si se acepta la nueva solución;
+8. guardar una fila de traza.
+
+Esta sección permite que IVNS produzca resultados comparables con VNS en
+=summary.csv= y =trace.csv=.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-experiments.lisp
+(in-package :vrp)
+
+(defun experiment-set-random-seed (seed)
+
+  "Inicializa *random-state* de forma reproducible para cada corrida.
+
+   Esta función debe usarse al inicio de cada corrida experimental.
+   El objetivo es que una misma semilla produzca la misma corrida
+   bajo la misma versión de SBCL y la misma configuración del proyecto."
+
+  (let ((safe-seed
+         (if (and seed
+                  (integerp seed)
+                  (>= seed 0))
+             seed
+             1)))
+
+    #+sbcl
+    (setf *random-state*
+          (sb-ext:seed-random-state safe-seed))
+
+    #-sbcl
+    (progn
+      (setf *random-state*
+            (make-random-state nil))
+      (loop repeat safe-seed do
+            (random 1.0)))
+
+    safe-seed))
+
+
+(defun experiment-solution-feasible-p
+       (solution problem &optional (penalty-factor 1000))
+
+  "Determina si una solución se considera factible.
+
+   En esta versión experimental, una solución es factible si la
+   evaluación del framework devuelve penalización cero.
+
+   Esto mantiene la factibilidad alineada con la función objetivo
+   usada durante las corridas."
+
+  (handler-case
+
+      (multiple-value-bind
+            (cost distance penalty)
+
+          (ivns-evaluate-solution
+           solution
+           problem
+           penalty-factor)
+
+        (declare
+         (ignore cost distance))
+
+        (and (numberp penalty)
+             (zerop penalty)))
+
+    (error ()
+      nil)))
+
+
+(defun experiment-safe-number (value &optional (default 0))
+
+  "Devuelve VALUE si es numérico; en otro caso devuelve DEFAULT."
+
+  (if (numberp value)
+      value
+      default))
+
+
+(defun experiment-safe-string (value &optional (default ""))
+
+  "Devuelve VALUE como string seguro para exportación."
+
+  (cond
+    ((stringp value)
+     value)
+
+    ((symbolp value)
+     (string-downcase
+      (symbol-name value)))
+
+    ((null value)
+     default)
+
+    (t
+     (format nil "~a" value))))
+
+
+(defun ivns-generate-new-string
+       (used-strings
+        max-tries)
+
+  "Genera una cadena IVNS y devuelve diagnóstico.
+
+   Devuelve cuatro valores, en el orden que espera IVNS-RUN-EXPERIMENTAL:
+
+   1. cadena generada, o NIL si no se pudo generar;
+   2. cantidad de intentos realizados;
+   3. cantidad de cadenas rechazadas;
+   4. plist diagnóstico.
+
+   Esta función no interpreta USED-STRINGS como parámetro de configuración.
+   USED-STRINGS representa las cadenas ya usadas dentro de la corrida IVNS
+   actual. Si el filtro genera una cadena repetida dentro de la misma corrida,
+   se rechaza y se intenta generar otra."
+
+  (let ((cadena nil)
+        (tries 0)
+        (rejected 0)
+        (generated-count-total 0)
+        (valid-count-total 0)
+        (invalid-count-total 0)
+        (last-reason "")
+        (last-key :unknown)
+        (last-reject-counts nil))
+
+    (labels
+        ((safe-reason-key
+             (reason)
+
+           (handler-case
+               (ivns::ivns-reject-reason->key reason)
+
+             (error ()
+               :unknown)))
+
+         (make-diagnostic
+             ()
+
+           (list
+            :string cadena
+
+            :generated-count generated-count-total
+            :valid-count valid-count-total
+            :invalid-count invalid-count-total
+
+            :reject-reason last-reason
+            :reject-key last-key
+            :reject-counts last-reject-counts
+
+            :generation-tries tries
+            :generation-max-tries max-tries
+
+            :strings-generated generated-count-total
+            :strings-valid valid-count-total
+            :strings-invalid invalid-count-total)))
+
+      (loop while (and (< tries max-tries)
+                       (null cadena))
+
+            do
+              (multiple-value-bind
+                    (generated-string attempts invalid-count-local
+                     last-reason-local reason-counts
+                     generated-count-local valid-count-local)
+
+                  (ivns::filter-string-with-diagnostics
+                   :max-attempts max-tries
+                   :max-imbalance
+                   (ivns::get-config :max-imbalance 2)
+                   :max-length
+                   (ivns::get-config :max-length 10)
+                   :max-complexity
+                   (ivns::get-config :max-complexity 14)
+                   :allow-expensive-patterns
+                   (ivns::get-config :allow-expensive-patterns nil))
+
+                (incf tries
+                      (max 1
+                           (or attempts
+                               1)))
+
+                (incf generated-count-total
+                      (or generated-count-local
+                          0))
+
+                (incf valid-count-total
+                      (or valid-count-local
+                          0))
+
+                (incf invalid-count-total
+                      (or invalid-count-local
+                          0))
+
+                (setf last-reason
+                      (or last-reason-local
+                          ""))
+
+                (setf last-key
+                      (safe-reason-key
+                       last-reason))
+
+                (setf last-reject-counts
+                      reason-counts)
+
+                (cond
+
+                  ((null generated-string)
+                   (incf rejected)
+
+                   (when (or (null last-reason)
+                             (= (length last-reason)
+                                0))
+                     (setf last-reason
+                           "generation-limit-reached")
+
+                     (setf last-key
+                           :generation-limit-reached)))
+
+                  ((member generated-string
+                           used-strings
+                           :test #'equal)
+
+                   (incf rejected)
+                   (incf invalid-count-total)
+
+                   (setf last-reason
+                         "duplicated-string")
+
+                   (setf last-key
+                         :duplicated-string)
+
+                   (let ((current
+                          (getf last-reject-counts
+                                :duplicated-string
+                                0)))
+
+                     (setf (getf last-reject-counts
+                                 :duplicated-string)
+                           (1+ current))))
+
+                  (t
+                   (setf cadena
+                         generated-string)))))
+
+      (when (and (null cadena)
+                 (or (null last-reason)
+                     (= (length last-reason)
+                        0)))
+
+        (setf last-reason
+              "generation-limit-reached")
+
+        (setf last-key
+              :generation-limit-reached))
+
+      (values
+       cadena
+       tries
+       rejected
+       (make-diagnostic)))))
+
+(defun ivns-string-operators (cadena)
+  (if cadena
+      (remove-duplicates
+       (coerce cadena 'list)
+       :test #'char=)
+      nil))
+
+(defun ivns-make-trace-row
+    (&key
+       iter
+       k
+       cadena
+       generation-tries
+       rejected
+       accepted
+       nil-neighbor
+       current-cost
+       best-cost
+       delta
+       distance
+       penalty
+       elapsed-time
+       status
+       error
+       strings-generated-iter
+       strings-valid-iter
+       strings-invalid-iter
+       strings-evaluated-iter
+       strings-selected-iter
+       strings-accepted-iter
+       unique-strings-iter
+       filter-reject-reason
+       filter-reject-key)
+
+  "Construye una fila de trace IVNS con métricas separadas de cadenas."
+  (let* ((string-length
+          (if cadena
+              (length cadena)
+              0))
+
+         (operators
+          (ivns-string-operators cadena))
+
+         (complexity-score
+          (if cadena
+              (ivns::ivns-complexity-score cadena)
+              0)))
+
+    (list
+     :iter iter
+     :k k
+
+     :current-cost current-cost
+     :best-cost best-cost
+     :delta delta
+
+     :shake-applied nil
+     :shake-tries nil
+     :shake-invalid nil
+
+     :vnd-rounds nil
+     :vnd-improvements nil
+     :neighbors-evaluated strings-evaluated-iter
+
+     :ivns-string cadena
+     :ivns-string-length string-length
+     :ivns-complexity-score complexity-score
+     :ivns-generation-tries generation-tries
+
+     :ivns-strings-generated-iter strings-generated-iter
+     :ivns-strings-valid-iter strings-valid-iter
+     :ivns-strings-invalid-iter strings-invalid-iter
+     :ivns-strings-evaluated-iter strings-evaluated-iter
+     :ivns-strings-selected-iter strings-selected-iter
+     :ivns-strings-accepted-iter strings-accepted-iter
+     :ivns-unique-strings-iter unique-strings-iter
+     :ivns-filter-reject-reason filter-reject-reason
+     :ivns-filter-reject-key filter-reject-key
+
+     :accepted accepted
+     :elapsed-time elapsed-time
+     :elapsed-time-seconds elapsed-time
+
+     :status status
+     :error error
+
+     :cadena cadena
+     :length string-length
+     :operators operators
+     :generation-tries generation-tries
+     :rejected rejected
+     :nil-neighbor nil-neighbor
+     :distance distance
+     :penalty penalty)))
+
+(defun ivns-solution-signature (solution)
+
+  "Construye una firma determinista de una solución IVNS.
+
+   Usa la misma representación que VNS para poder verificar pareo real
+   entre algoritmos mediante initial_solution_signature."
+  (if solution
+      (vrp-vns-solution-signature solution)
+      ""))
+
+(defun ivns-same-solution-p
+    (solution-a
+     solution-b)
+
+  (string=
+   (ivns-solution-signature solution-a)
+   (ivns-solution-signature solution-b)))
+
+(defun ivns-validate-neighbor
+    (current
+     neighbor
+     penalty)
+
+  (cond
+
+    ;; vecino NIL
+    ((null neighbor)
+     (values nil :nil-neighbor))
+
+    ;; misma solución
+    ((ivns-same-solution-p
+      current
+      neighbor)
+
+     (values nil :same-solution))
+
+    ;; infactible
+    ((> penalty 0)
+     (values t :penalized))
+
+    ;; válido
+    (t
+     (values t :valid))))
+
+(defun ivns-safe-apply-criterion
+       (criterion
+        solution
+        problem
+        action
+        max-seconds)
+
+  "Aplica un criterio IVNS con límite de tiempo.
+
+   Devuelve:
+   neighbor
+   status
+   error-message"
+
+  (cond
+
+    ((or (null max-seconds)
+         (<= max-seconds 0))
+
+     (handler-case
+         (values
+          (funcall criterion
+                   solution
+                   problem
+                   action)
+          :ok
+          "")
+
+       (error (e)
+         (values
+          nil
+          :error
+          (format nil "~a" e)))))
+
+    (t
+
+     (handler-case
+
+         (let ((neighbor
+                 (sb-ext:with-timeout max-seconds
+                   (funcall criterion
+                            solution
+                            problem
+                            action))))
+
+           (values
+            neighbor
+            :ok
+            ""))
+
+       (sb-ext:timeout ()
+
+         (values
+          nil
+          :timeout
+          (format nil
+                  "Tiempo límite agotado aplicando criterio IVNS: ~a segundos."
+                  max-seconds)))
+
+       (error (e)
+
+         (values
+          nil
+          :error
+          (format nil "~a" e)))))))
+
+(defun ivns-vnd-enabled-p
+       (vnd-mode
+        vnd-max-rounds)
+
+  "Indica si IVNS debe aplicar el mismo VND que VNS."
+
+  (and vnd-mode
+       (not (member vnd-mode
+                    '(:none :basic nil)
+                    :test #'eq))
+       (numberp vnd-max-rounds)
+       (> vnd-max-rounds 0)))
+
+
+(defun ivns-build-neighbor-from-string
+       (cadena
+        solution
+        problem
+        max-neighborhood-seconds
+        &key
+          (print-description nil))
+
+  "Convierte una cadena IVNS en un criterio VRP y lo aplica a una solución.
+
+   Esta función representa el shake de IVNS:
+   - recibe una cadena generada por la gramática;
+   - la convierte en acciones;
+   - transforma esas acciones en un criterio VRP;
+   - aplica el criterio con límite de tiempo.
+
+   Devuelve:
+   1. neighbor
+   2. status
+   3. error-message"
+
+  (handler-case
+
+      (multiple-value-bind
+            (res actions tokens)
+
+          (ivns::apply-subindices
+           cadena)
+
+        (declare
+         (ignore res tokens))
+
+        (let* ((criterion
+                ;; Esta función está en el paquete VRP, no en IVNS.
+                (ivns-actions->criterion
+                 actions
+                 :print-description print-description))
+
+               (action
+                (delta-cvrp-action)))
+
+          (ivns-safe-apply-criterion
+           criterion
+           solution
+           problem
+           action
+           max-neighborhood-seconds)))
+
+    (error (e)
+
+      (values
+       nil
+       :error
+       (format nil "~a" e)))))
+
+#+END_SRC
+
+* Notas
+
+** =k= y =kmax= en IVNS
+
+En VNS clásico, =k= indica el nivel de vecindad utilizado por Shake.
+
+En IVNS, la vecindad no se toma de una lista fija indexada por =k=. La
+variación se produce mediante la generación de nuevas cadenas gramaticales.
+
+Por esa razón, en esta versión experimental =k= se conserva como contador
+homologado para trazas y control de estancamiento, pero la generación de
+vecindades depende principalmente de:
+
+- =generation-max-tries=;
+- =ivns-max-neighborhood-seconds=;
+- filtros de cadenas IVNS;
+- gramática usada por el generador.
+
+Esta aclaración evita interpretar incorrectamente el significado de =k= al
+comparar VNS e IVNS.
+
+** Reinicio de cadenas usadas al mejorar
+
+El parámetro =reset-generated-strings-on-improvement-p= controla si IVNS
+limpia el historial de cadenas ya usadas cuando acepta una mejora.
+
+- Si es =T=, después de una mejora se reinicia =k= y también se limpia el
+  historial local de cadenas.
+- Si es =NIL=, después de una mejora se reinicia =k=, pero las cadenas usadas
+  durante la corrida se conservan.
+
+Este parámetro permite comparar ambas políticas sin cambiar el código interno
+de la corrida.
+
+** =shake-max-tries= en IVNS
+
+El parámetro =shake-max-tries= se mantiene para que VNS e IVNS compartan una
+estructura experimental común.
+
+En VNS, este parámetro controla los intentos del Shake clásico.
+
+En IVNS, la perturbación se basa en la generación de cadenas gramaticales.
+Por tanto, el control efectivo del Shake IVNS depende sobre todo de
+=generation-max-tries= y =ivns-max-neighborhood-seconds=.
+
+Si se desea una equivalencia más estricta, puede definirse
+=shake-max-tries= como alias de =generation-max-tries= o eliminarse de la
+firma de IVNS experimental. Mientras se mantenga, debe quedar documentado.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-experiments.lisp
+;;;; ============================================================
+;;;; Selección múltiple de cadenas IVNS
+;;;; ============================================================
+
+(defparameter *ivns-candidates-per-iteration-default* 1
+  "Cantidad de cadenas IVNS candidatas generadas por iteración.
+   Si vale 1, el comportamiento equivale al IVNS básico actual.")
+
+(defparameter *ivns-candidate-selection-mode-default* :single
+  "Modo de selección de cadenas IVNS.
+   Valores admitidos:
+   :single       -> una sola cadena, comportamiento básico.
+   :first-valid  -> primera cadena válida.
+   :best         -> mejor delta entre candidatas válidas.
+   :mixed        -> mezcla mejor candidata y candidata aleatoria válida.")
+
+(defparameter *ivns-exploration-rate-default* 0.30
+  "Probabilidad de seleccionar una candidata válida aleatoria
+   cuando el modo es :mixed.")
+
+(defun ivns-status-key (status)
+  "Normaliza STATUS a una cadena minúscula."
+  (cond
+    ((null status) "nil")
+    ((symbolp status) (string-downcase (symbol-name status)))
+    ((stringp status) (string-downcase status))
+    (t (string-downcase (format nil "~a" status)))))
+
+(defun ivns-status-ok-p (status)
+  "Devuelve T si STATUS representa una aplicación válida."
+  (string= (ivns-status-key status) "ok"))
+
+(defun ivns-timeout-status-p (status)
+  "Devuelve T si STATUS representa timeout."
+  (string= (ivns-status-key status) "timeout"))
+
+(defun ivns-random-elt (lst)
+  "Devuelve un elemento aleatorio de LST o NIL si la lista está vacía."
+  (when lst
+    (nth (random (length lst)) lst)))
+
+(defun ivns-safe-complexity-score (cadena)
+  "Calcula la complejidad de CADENA sin romper la corrida si falla."
+  (handler-case
+      (ivns::ivns-complexity-score cadena)
+    (error ()
+      0)))
+
+(defun ivns-string-basic-valid-p (cadena)
+  "Valida una cadena IVNS usando los filtros disponibles.
+   Si la función de validación no existe o falla, no detiene la corrida."
+  (handler-case
+      (multiple-value-bind (ok reason)
+          (ivns::ivns-string-valid-p cadena)
+        (values ok reason))
+    (error (e)
+      (values t (format nil "validacion-no-disponible: ~a" e)))))
+
+(defun ivns-build-shake-candidate
+       (candidate-index
+        current
+        problem
+        current-cost
+        penalty-factor
+        max-neighborhood-seconds
+        &key
+          (generation-max-tries 50))
+
+  "Genera y evalúa una candidata IVNS.
+
+   Esta función usa FILTER-STRING-WITH-DIAGNOSTICS para conservar
+   información sobre cadenas generadas, válidas, inválidas y razones de
+   rechazo. Además, recibe GENERATION-MAX-TRIES para que el parámetro
+   experimental controle realmente el filtro de cadenas."
+
+  (multiple-value-bind
+        (generated-string attempts invalid-count last-reason reason-counts
+         generated-count valid-count)
+
+      (ivns::filter-string-with-diagnostics
+       :max-attempts generation-max-tries
+       :max-imbalance
+       (ivns::get-config :max-imbalance 2)
+       :max-length
+       (ivns::get-config :max-length 10)
+       :max-complexity
+       (ivns::get-config :max-complexity 14)
+       :allow-expensive-patterns
+       (ivns::get-config :allow-expensive-patterns nil))
+
+    (let* ((string-length
+            (if generated-string
+                (length generated-string)
+                0))
+
+           (complexity
+            (if generated-string
+                (ivns-safe-complexity-score generated-string)
+                0)))
+
+      (unless generated-string
+
+        (return-from ivns-build-shake-candidate
+          (list
+           :rank candidate-index
+           :string ""
+           :neighbor nil
+           :cost current-cost
+           :delta 0
+           :status "invalid"
+           :error
+           (if (and last-reason
+                    (> (length last-reason) 0))
+               last-reason
+               "No se pudo generar cadena IVNS válida.")
+           :length 0
+           :complexity 0
+           :strings-generated generated-count
+           :strings-valid valid-count
+           :strings-invalid invalid-count
+           :generation-tries attempts
+           :reject-reason
+           (if (and last-reason
+                    (> (length last-reason) 0))
+               last-reason
+               "generation-limit-reached")
+           :reject-counts reason-counts)))
+
+      (handler-case
+
+          (multiple-value-bind
+                (neighbor status error-message)
+
+              (ivns-build-neighbor-from-string
+               generated-string
+               current
+               problem
+               max-neighborhood-seconds
+               :print-description nil)
+
+            (let ((status-key
+                   (ivns-status-key status)))
+
+              (if (and neighbor
+                       (ivns-status-ok-p status))
+
+                  (multiple-value-bind
+                        (candidate-cost distance penalty)
+
+                      (ivns-evaluate-solution
+                       neighbor
+                       problem
+                       penalty-factor)
+
+                    (declare
+                     (ignore distance penalty))
+
+                    (list
+                     :rank candidate-index
+                     :string generated-string
+                     :neighbor neighbor
+                     :cost candidate-cost
+                     :delta (- candidate-cost current-cost)
+                     :status "ok"
+                     :error ""
+                     :length string-length
+                     :complexity complexity
+                     :strings-generated generated-count
+                     :strings-valid valid-count
+                     :strings-invalid invalid-count
+                     :generation-tries attempts
+                     :reject-reason "ok"
+                     :reject-counts reason-counts))
+
+                  (list
+                   :rank candidate-index
+                   :string generated-string
+                   :neighbor nil
+                   :cost current-cost
+                   :delta 0
+                   :status status-key
+                   :error
+                   (or error-message "")
+                   :length string-length
+                   :complexity complexity
+                   :strings-generated generated-count
+                   :strings-valid valid-count
+                   :strings-invalid invalid-count
+                   :generation-tries attempts
+                   :reject-reason status-key
+                   :reject-counts reason-counts))))
+
+        (error (e)
+
+          (list
+           :rank candidate-index
+           :string generated-string
+           :neighbor nil
+           :cost current-cost
+           :delta 0
+           :status "error"
+           :error (format nil "~a" e)
+           :length string-length
+           :complexity complexity
+           :strings-generated generated-count
+           :strings-valid valid-count
+           :strings-invalid invalid-count
+           :generation-tries attempts
+           :reject-reason "error"
+           :reject-counts reason-counts))))))
+
+(defun ivns-candidate-valid-p (candidate)
+  "Una candidata es válida si produjo vecino y su status es OK."
+  (and candidate
+       (getf candidate :neighbor)
+       (string= (getf candidate :status) "ok")))
+
+(defun ivns-candidate-improving-p (candidate)
+  "Devuelve T si la candidata mejora directamente el costo actual."
+  (and (ivns-candidate-valid-p candidate)
+       (< (getf candidate :delta) 0)))
+
+(defun ivns-candidate-stats
+       (candidates)
+
+  "Calcula estadísticas de una lista de candidatas IVNS.
+
+   Distingue entre:
+   - candidatas generadas;
+   - cadenas generadas por el filtro;
+   - cadenas válidas;
+   - cadenas inválidas;
+   - cadenas evaluadas;
+   - cadenas seleccionadas;
+   - cadenas aceptadas;
+   - razones de rechazo."
+
+  (let ((generated 0)
+        (valid 0)
+        (timeout 0)
+        (invalid 0)
+        (errors 0)
+        (non-improving-valid 0)
+        (applied 0)
+
+        (strings-generated-total 0)
+        (strings-valid-total 0)
+        (strings-invalid-total 0)
+        (strings-evaluated-total 0)
+        (strings-selected-total 0)
+        (strings-accepted-total 0)
+        (unique-strings '())
+
+        (reject-too-many-r 0)
+        (reject-too-short 0)
+        (reject-too-long 0)
+        (reject-unbalanced 0)
+        (reject-missing-required-symbol 0)
+        (reject-forbidden-expensive-pattern 0)
+        (reject-semantic-invalid 0)
+        (reject-duplicated-string 0)
+        (reject-generation-limit-reached 0)
+        (reject-unknown 0))
+
+    (labels
+        ((add-reject-counts
+             (counts)
+
+           (when counts
+
+             (incf reject-too-many-r
+                   (getf counts :too-many-r 0))
+
+             (incf reject-too-short
+                   (getf counts :too-short 0))
+
+             (incf reject-too-long
+                   (getf counts :too-long 0))
+
+             (incf reject-unbalanced
+                   (getf counts :unbalanced 0))
+
+             (incf reject-missing-required-symbol
+                   (getf counts :missing-required-symbol 0))
+
+             (incf reject-forbidden-expensive-pattern
+                   (getf counts :forbidden-expensive-pattern 0))
+
+             (incf reject-semantic-invalid
+                   (getf counts :semantic-invalid 0))
+
+             (incf reject-duplicated-string
+                   (getf counts :duplicated-string 0))
+
+             (incf reject-generation-limit-reached
+                   (getf counts :generation-limit-reached 0))
+
+             (incf reject-unknown
+                   (getf counts :unknown 0)))))
+
+      (dolist (candidate candidates)
+
+        (incf generated)
+
+        (incf strings-generated-total
+              (or (getf candidate :strings-generated)
+                  0))
+
+        (incf strings-valid-total
+              (or (getf candidate :strings-valid)
+                  0))
+
+        (incf strings-invalid-total
+              (or (getf candidate :strings-invalid)
+                  0))
+
+        (add-reject-counts
+         (getf candidate :reject-counts))
+
+        (let ((candidate-string
+               (getf candidate :string)))
+
+          (when (and candidate-string
+                     (> (length candidate-string) 0)
+                     (not (member candidate-string
+                                  unique-strings
+                                  :test #'string=)))
+
+            (push candidate-string
+                  unique-strings)))
+
+        (let ((status
+               (getf candidate :status)))
+
+          (cond
+
+            ((ivns-candidate-valid-p candidate)
+             (incf valid)
+             (incf applied)
+             (incf strings-evaluated-total)
+
+             (when (>= (getf candidate :delta)
+                       0)
+               (incf non-improving-valid)))
+
+            ((ivns-timeout-status-p status)
+             (incf timeout)
+             (incf applied)
+             (incf strings-evaluated-total))
+
+            ((string= status "error")
+             (incf errors))
+
+            (t
+             (incf invalid))))))
+
+    (list
+     :generated generated
+     :valid valid
+     :timeout timeout
+     :invalid invalid
+     :errors errors
+     :non-improving-valid non-improving-valid
+     :applied applied
+
+     :strings-generated-total strings-generated-total
+     :strings-valid-total strings-valid-total
+     :strings-invalid-total strings-invalid-total
+     :strings-evaluated-total strings-evaluated-total
+     :strings-selected-total strings-selected-total
+     :strings-accepted-total strings-accepted-total
+     :unique-strings-total (length unique-strings)
+
+     :reject-too-many-r reject-too-many-r
+     :reject-too-short reject-too-short
+     :reject-too-long reject-too-long
+     :reject-unbalanced reject-unbalanced
+     :reject-missing-required-symbol reject-missing-required-symbol
+     :reject-forbidden-expensive-pattern reject-forbidden-expensive-pattern
+     :reject-semantic-invalid reject-semantic-invalid
+     :reject-duplicated-string reject-duplicated-string
+     :reject-generation-limit-reached reject-generation-limit-reached
+     :reject-unknown reject-unknown)))
+
+(defun ivns-best-candidate (valid-candidates)
+  "Devuelve la candidata válida con menor delta.
+   Puede ser mejorante o no mejorante; si todas empeoran,
+   devuelve la que menos empeora."
+  (first
+   (sort (copy-list valid-candidates)
+         #'<
+         :key (lambda (candidate)
+                (getf candidate :delta)))))
+
+(defun ivns-select-candidate
+       (candidates selection-mode exploration-rate)
+  "Selecciona una candidata según SELECTION-MODE.
+
+   Modos:
+   :single
+   :first-valid
+   :best
+   :mixed
+
+   Devuelve:
+   selected-candidate
+   selected-reason"
+  (let* ((mode (or selection-mode :single))
+         (valid-candidates
+          (remove-if-not #'ivns-candidate-valid-p candidates))
+         (improving-candidates
+          (remove-if-not #'ivns-candidate-improving-p valid-candidates)))
+
+    (cond
+      ;; Comportamiento equivalente al IVNS básico:
+      ;; una sola cadena por iteración.
+      ((eq mode :single)
+       (let ((candidate (first valid-candidates)))
+         (values candidate
+                 (if candidate
+                     "single"
+                     "none_valid"))))
+
+      ;; Usa la primera cadena válida.
+      ((eq mode :first-valid)
+       (let ((candidate (first valid-candidates)))
+         (values candidate
+                 (if candidate
+                     "first_valid"
+                     "none_valid"))))
+
+      ;; Usa la mejor candidata por delta.
+      ((eq mode :best)
+       (let ((candidate (ivns-best-candidate valid-candidates)))
+         (values candidate
+                 (cond
+                   ((null candidate) "none_valid")
+                   ((member candidate improving-candidates) "best_improving")
+                   (t "best_valid")))))
+
+      ;; Mezcla explotación y exploración.
+      ;; Con probabilidad exploration-rate escoge una válida aleatoria.
+      ;; En caso contrario escoge la mejor por delta.
+      ((eq mode :mixed)
+       (let ((candidate
+              (if (and valid-candidates
+                       (< (random 1.0) exploration-rate))
+                  (ivns-random-elt valid-candidates)
+                  (ivns-best-candidate valid-candidates))))
+         (values candidate
+                 (cond
+                   ((null candidate) "none_valid")
+                   ((member candidate improving-candidates)
+                    "mixed_best_or_random_improving")
+                   (t
+                    "mixed_random_or_best_valid")))))
+
+      ;; Si llega un modo desconocido, usa :single.
+      (t
+       (let ((candidate (first valid-candidates)))
+         (values candidate
+                 (if candidate
+                     "single_fallback"
+                     "none_valid")))))))
+
+(defun ivns-generate-and-select-shake-candidate
+       (current
+        problem
+        current-cost
+        penalty-factor
+        max-neighborhood-seconds
+        candidates-per-iteration
+        selection-mode
+        exploration-rate
+        generation-max-tries)
+
+  "Genera varias candidatas IVNS y selecciona una.
+
+   GENERATION-MAX-TRIES se pasa a IVNS-BUILD-SHAKE-CANDIDATE para que
+   el parámetro experimental controle realmente el filtrado de cadenas."
+
+  (let ((candidates '()))
+
+    (loop for i from 1 to (max 1 candidates-per-iteration)
+
+          do
+            (push
+             (ivns-build-shake-candidate
+              i
+              current
+              problem
+              current-cost
+              penalty-factor
+              max-neighborhood-seconds
+              :generation-max-tries generation-max-tries)
+             candidates))
+
+    (setf candidates
+          (reverse candidates))
+
+    (multiple-value-bind
+          (selected reason)
+
+        (ivns-select-candidate
+         candidates
+         selection-mode
+         exploration-rate)
+
+      (let ((stats
+             (ivns-candidate-stats candidates)))
+
+        (when selected
+
+          (setf (getf stats :strings-selected-total)
+                1)
+
+          (when (ivns-candidate-improving-p selected)
+
+            (setf (getf stats :strings-accepted-total)
+                  1)))
+
+        (values
+         selected
+         stats
+         reason
+         candidates)))))
+
+(defun ivns-vnd-search
+       (solution problem criteria penalty-factor
+        vnd-mode vnd-max-rounds vnd-max-no-improve)
+
+  "Aplica búsqueda local sobre la solución producida por el shake IVNS.
+
+   Modos soportados:
+
+   - :best selecciona la mejor mejora encontrada.
+   - :first selecciona la primera mejora encontrada.
+   - :random selecciona aleatoriamente una mejora válida.
+
+   El modo :random no acepta cualquier vecino, sino que escoge al azar
+   entre vecinos que mejoran el costo actual."
+  (let* ((current
+          solution)
+
+         (best
+          solution)
+
+         (best-cost
+          (multiple-value-bind
+                (cost distance penalty)
+
+              (ivns-evaluate-solution
+               solution
+               problem
+               penalty-factor)
+
+            (declare
+             (ignore distance penalty))
+
+            cost))
+
+         (rounds 0)
+         (improvements 0)
+         (neighbors-evaluated 0)
+         (no-improve 0))
+
+    (labels
+        ((solution-cost (candidate)
+
+           (multiple-value-bind
+                 (cost distance penalty)
+
+               (ivns-evaluate-solution
+                candidate
+                problem
+                penalty-factor)
+
+             (declare
+              (ignore distance penalty))
+
+             cost))
+
+         (select-random-improvement (candidates)
+
+           (when candidates
+             (nth (random (length candidates))
+                  candidates))))
+
+      (if (or (null criteria)
+              (null vnd-max-rounds)
+              (<= vnd-max-rounds 0)
+              (eq vnd-mode :none))
+
+          (values
+           best
+           best-cost
+           0
+           0
+           0)
+
+          (progn
+
+            (loop while
+                  (and (< rounds vnd-max-rounds)
+                       (< no-improve vnd-max-no-improve))
+
+                  do
+                    (incf rounds)
+
+                    (let ((round-improved nil)
+                          (round-best-solution nil)
+                          (round-best-cost best-cost)
+                          (random-improving-candidates '()))
+
+                      ;; Recorre los criterios de búsqueda local.
+                      ;; El CATCH permite salir de la ronda cuando el modo
+                      ;; es :first y aparece la primera mejora.
+                      (catch 'finish-round
+
+                        (dolist (criterion criteria)
+
+                          (handler-case
+
+                              (let ((neighbor
+                                     (funcall criterion
+                                              current
+                                              problem
+                                              nil)))
+
+                                (incf neighbors-evaluated)
+
+                                (when neighbor
+
+                                  (let ((neighbor-cost
+                                         (solution-cost neighbor)))
+
+                                    (when (< neighbor-cost best-cost)
+
+                                      (cond
+
+                                        ;; Primera mejora.
+                                        ((eq vnd-mode :first)
+
+                                         (setf best neighbor)
+                                         (setf best-cost neighbor-cost)
+                                         (setf current neighbor)
+
+                                         (setf round-improved t)
+                                         (incf improvements)
+
+                                         (throw 'finish-round t))
+
+                                        ;; Mejora aleatoria.
+                                        ((eq vnd-mode :random)
+
+                                         (push
+                                          (list
+                                           :solution neighbor
+                                           :cost neighbor-cost)
+                                          random-improving-candidates))
+
+                                        ;; Mejor mejora.
+                                        (t
+
+                                         (when (< neighbor-cost
+                                                  round-best-cost)
+
+                                           (setf round-best-solution
+                                                 neighbor)
+
+                                           (setf round-best-cost
+                                                 neighbor-cost)))))))))
+
+                            (error ()
+                              nil)))
+
+                      ;; Si el modo es :random, seleccionar aleatoriamente
+                      ;; una mejora válida entre las encontradas.
+                      (when (and (eq vnd-mode :random)
+                                 random-improving-candidates)
+
+                        (let* ((selected
+                                (select-random-improvement
+                                 random-improving-candidates))
+
+                               (selected-solution
+                                (getf selected :solution))
+
+                               (selected-cost
+                                (getf selected :cost)))
+
+                          (setf best selected-solution)
+                          (setf best-cost selected-cost)
+                          (setf current selected-solution)
+
+                          (setf round-improved t)
+                          (incf improvements)))
+
+                      ;; Si el modo es :best, aplicar la mejor mejora
+                      ;; encontrada en la ronda.
+                      (when (and (not (member vnd-mode
+                                              '(:first :random :none)))
+                                 round-best-solution)
+
+                        (setf best round-best-solution)
+                        (setf best-cost round-best-cost)
+                        (setf current round-best-solution)
+
+                        (setf round-improved t)
+                        (incf improvements))
+
+                      (if round-improved
+                          (setf no-improve 0)
+                          (incf no-improve))))
+
+            (values
+             best
+             best-cost
+             rounds
+             improvements
+             neighbors-evaluated))))))
+
+(defun ivns-run-experimental
+       (problem
+        &key
+          criteria
+          (constructor #'make-initial-solution-for-cvrp-random)
+          (initial-solution nil)
+          (initial-solution-source "generated_inside_algorithm")
+          (initial-solution-shared-p nil)
+          (seed 1)
+          (max-iter 100)
+          (kmax 5)
+          (max-no-improve 30)
+          (shake-max-tries 10)
+          (generation-max-tries 50)
+          (vnd-mode :best-improvement)
+          (vnd-max-rounds 20)
+          (vnd-max-no-improve 10)
+          (ivns-max-neighborhood-seconds 0.05)
+          (penalty-factor 1000)
+          (reset-generated-strings-on-improvement-p t)
+          known-best
+          time-limit-seconds
+          quiet
+          verbose)
+
+  (declare (ignore criteria verbose))
+
+  (setf *random-state*
+        (make-random-state t))
+
+  (loop repeat seed do
+        (random 1.0))
+ 
+  (when (fboundp 'ivns::clear-generated-strings)
+        (ivns::clear-generated-strings))
+
+  (let* ((initial-solution-real
+          (if initial-solution
+              (vrp::clone initial-solution)
+              (funcall constructor problem)))
+
+         (initial-cost
+          (multiple-value-bind
+                (cost distance penalty)
+
+              (ivns-evaluate-solution
+               initial-solution-real
+               problem
+               penalty-factor)
+
+            (declare (ignore distance penalty))
+            cost))
+
+         (initial-solution-signature
+          (ivns-solution-signature initial-solution-real))
+
+         (current initial-solution-real)
+         (current-cost initial-cost)
+
+         (best (vrp::clone current))
+         (best-cost current-cost)
+         (final-cost current-cost)
+
+         (iter 0)
+         (k 1)
+         (no-improve 0)
+
+         (accepted-improvements 0)
+
+         (invalid-neighbors 0)
+         (no-improvement-neighbors 0)
+         (timeout-neighbors 0)
+         (neighbors-evaluated-total 0)
+
+         (generation-tries-total 0)
+
+         (strings-generated-total 0)
+         (strings-valid-total 0)
+         (strings-invalid-total 0)
+         (strings-evaluated-total 0)
+         (strings-selected-total 0)
+         (strings-accepted-total 0)
+
+         (reject-too-many-r 0)
+         (reject-too-short 0)
+         (reject-too-long 0)
+         (reject-unbalanced 0)
+         (reject-missing-required-symbol 0)
+         (reject-forbidden-expensive-pattern 0)
+         (reject-semantic-invalid 0)
+         (reject-duplicated-string 0)
+         (reject-generation-limit-reached 0)
+         (reject-unknown 0)
+
+         (unique-strings
+          (make-hash-table :test 'equal))
+
+         (used-strings '())
+
+         (best-iteration 0)
+         (termination-reason "unknown")
+         (trace '())
+
+         (start-time
+          (get-internal-real-time)))
+
+    (labels
+        ((elapsed-seconds ()
+           (/ (- (get-internal-real-time)
+                 start-time)
+              internal-time-units-per-second))
+
+         (safe-next-k ()
+           (incf k)
+           (when (> k kmax)
+             (setf k 1)))
+
+         (register-reject-key (key)
+           (case key
+             (:too-many-r
+              (incf reject-too-many-r))
+
+             (:too-short
+              (incf reject-too-short))
+
+             (:too-long
+              (incf reject-too-long))
+
+             (:unbalanced
+              (incf reject-unbalanced))
+
+             (:missing-required-symbol
+              (incf reject-missing-required-symbol))
+
+             (:forbidden-expensive-pattern
+              (incf reject-forbidden-expensive-pattern))
+
+             (:semantic-invalid
+              (incf reject-semantic-invalid))
+
+             (:duplicated-string
+              (incf reject-duplicated-string))
+
+             (:generation-limit-reached
+              (incf reject-generation-limit-reached))
+
+             (otherwise
+              (incf reject-unknown)))))
+
+      (loop
+        while (and (< iter max-iter)
+                   (< no-improve max-no-improve)
+                   (or (null time-limit-seconds)
+                       (< (elapsed-seconds)
+                          time-limit-seconds)))
+
+        do
+          (incf iter)
+
+          (let* ((generated-string nil)
+                 (complexity-score 0)
+
+                 (generation-tries 0)
+                 (generation-rejected 0)
+
+                 (filter-reject-reason "")
+                 (filter-reject-key :ok)
+
+                 (strings-generated-iter 0)
+                 (strings-valid-iter 0)
+                 (strings-invalid-iter 0)
+                 (strings-evaluated-iter 0)
+                 (strings-selected-iter 0)
+                 (strings-accepted-iter 0)
+
+                 (neighbor nil)
+                 (neighbor-cost nil)
+                 (distance 0)
+                 (penalty 0)
+                 (delta 0)
+                 (accepted nil)
+
+                 (row-status "ok")
+                 (row-error ""))
+
+            ;; Generación de cadena con diagnóstico.
+            (multiple-value-bind
+                  (cadena tries rejected diagnostic)
+
+                (ivns-generate-new-string
+                 used-strings
+                 generation-max-tries)
+
+              (setf generated-string cadena)
+              (setf generation-tries tries)
+              (setf generation-rejected rejected)
+
+              (setf strings-generated-iter
+                    (or (getf diagnostic :generated-count)
+                        tries))
+
+              (setf strings-valid-iter
+                    (or (getf diagnostic :valid-count)
+                        0))
+
+              (setf strings-invalid-iter
+                    (or (getf diagnostic :invalid-count)
+                        rejected))
+
+              (setf filter-reject-reason
+                    (or (getf diagnostic :reject-reason)
+                        ""))
+
+              (setf filter-reject-key
+                    (or (getf diagnostic :reject-key)
+                        :unknown))
+
+              (incf generation-tries-total tries)
+              (incf strings-generated-total strings-generated-iter)
+              (incf strings-valid-total strings-valid-iter)
+              (incf strings-invalid-total strings-invalid-iter)
+
+              (when generated-string
+                (push generated-string used-strings)
+                (setf (gethash generated-string unique-strings) t)
+                (setf complexity-score
+                      (ivns::ivns-complexity-score
+                       generated-string))))
+
+            ;; Si no hay cadena válida, se registra como fallo de generación.
+            (unless generated-string
+              (setf row-status "none_valid")
+              (setf row-error filter-reject-reason)
+              (register-reject-key filter-reject-key)
+              (incf invalid-neighbors)
+              (incf no-improve)
+              (safe-next-k))
+
+            ;; Convertir cadena en criterio y aplicarla.
+            (when generated-string
+              (handler-case
+                  (multiple-value-bind
+                        (res actions tokens)
+
+                      (ivns::apply-subindices
+                       generated-string)
+
+                    (declare (ignore res tokens))
+
+                    (let* ((criterion
+                            (ivns-actions->criterion
+                             actions))
+
+                           (action
+                            (delta-cvrp-action)))
+
+                      (incf strings-selected-iter)
+                      (incf strings-selected-total)
+
+                      (multiple-value-bind
+                            (candidate status error-message)
+
+                          (ivns-safe-apply-criterion
+                           criterion
+                           current
+                           problem
+                           action
+                           ivns-max-neighborhood-seconds)
+
+                        (setf neighbor candidate)
+
+                        (cond
+                          ((eq status :timeout)
+                           (setf row-status "timeout")
+                           (setf row-error error-message)
+                           (incf timeout-neighbors))
+
+                          ((eq status :error)
+                           (setf row-status "error")
+                           (setf row-error error-message)
+                           (incf invalid-neighbors))
+
+                          (t
+                           (setf row-status "ok")
+                           (setf row-error ""))))))
+
+                (error (e)
+                  (setf row-status "error")
+                  (setf row-error
+                        (format nil "~a" e))
+                  (incf invalid-neighbors))))
+
+            ;; Evaluación del vecino.
+            (when neighbor
+              (incf strings-evaluated-iter)
+              (incf strings-evaluated-total)
+              (incf neighbors-evaluated-total)
+
+              (multiple-value-bind
+                    (cost dist pen)
+
+                  (ivns-evaluate-solution
+                   neighbor
+                   problem
+                   penalty-factor)
+
+                (setf neighbor-cost cost)
+                (setf distance dist)
+                (setf penalty pen)
+
+                (setf delta
+                      (- neighbor-cost
+                         current-cost))
+
+                (if (< neighbor-cost
+                       current-cost)
+
+                    (progn
+                      (setf accepted t)
+                      (incf accepted-improvements)
+                      (incf strings-accepted-iter)
+                      (incf strings-accepted-total)
+
+                      (setf current neighbor)
+                      (setf current-cost neighbor-cost)
+                      (setf final-cost neighbor-cost)
+
+                      (setf no-improve 0)
+                      (setf k 1)
+                      
+
+                      (when reset-generated-strings-on-improvement-p
+                        (when (fboundp 'ivns::clear-generated-strings)
+                          (ivns::clear-generated-strings))
+                        (setf used-strings '()))
+
+                      (when (< current-cost
+                               best-cost)
+                        (setf best
+                              (vrp::clone current))
+                        (setf best-cost current-cost)
+                        (setf best-iteration iter)))
+
+                    (progn
+                      (incf no-improvement-neighbors)
+                      (incf no-improve)
+                      (safe-next-k)))))
+
+            ;; Si hubo cadena pero no vecino, cuenta como intento no aplicable.
+            (when (and generated-string
+                       (null neighbor)
+                       (string= row-status "ok"))
+              (setf row-status "none_valid")
+              (setf row-error "La cadena no produjo vecino aplicable.")
+              (incf invalid-neighbors)
+              (incf no-improve)
+              (safe-next-k))
+
+            ;; Trace.
+            (push
+             (ivns-make-trace-row
+              :iter iter
+              :k k
+              :cadena generated-string
+              :generation-tries generation-tries
+              :rejected generation-rejected
+              :accepted accepted
+              :nil-neighbor (null neighbor)
+              :current-cost current-cost
+              :best-cost best-cost
+              :delta delta
+              :distance distance
+              :penalty penalty
+              :elapsed-time (elapsed-seconds)
+              :status row-status
+              :error row-error
+              :strings-generated-iter strings-generated-iter
+              :strings-valid-iter strings-valid-iter
+              :strings-invalid-iter strings-invalid-iter
+              :strings-evaluated-iter strings-evaluated-iter
+              :strings-selected-iter strings-selected-iter
+              :strings-accepted-iter strings-accepted-iter
+              :unique-strings-iter (hash-table-count unique-strings)
+              :filter-reject-reason filter-reject-reason
+              :filter-reject-key filter-reject-key)
+             trace)
+
+            (when (not quiet)
+              (format t
+                      "~%[ITER ~3d] cost=~8,2f | best=~8,2f | delta=~8,2f | accepted=~a | k=~d | string=~a | status=~a"
+                      iter
+                      current-cost
+                      best-cost
+                      delta
+                      accepted
+                      k
+                      generated-string
+                      row-status))))
+
+      (cond
+        ((>= iter max-iter)
+         (setf termination-reason "max_iter"))
+
+        ((>= no-improve max-no-improve)
+         (setf termination-reason "max_no_improve"))
+
+        ((and time-limit-seconds
+              (>= (elapsed-seconds)
+                  time-limit-seconds))
+         (setf termination-reason "time_limit"))
+
+        (t
+         (setf termination-reason "completed")))
+
+      (list
+       :algorithm "ivns"
+
+       :known-best known-best
+
+       :max-iter max-iter
+       :kmax kmax
+       :max-no-improve max-no-improve
+
+       :shake-max-tries shake-max-tries
+
+       :generation-max-tries generation-max-tries
+
+       :vnd-mode vnd-mode
+       :vnd-max-rounds vnd-max-rounds
+       :vnd-max-no-improve vnd-max-no-improve
+
+       :time-limit-seconds time-limit-seconds
+       :ivns-max-neighborhood-seconds ivns-max-neighborhood-seconds
+       :reset-generated-strings-on-improvement-p reset-generated-strings-on-improvement-p
+
+       :termination-reason termination-reason
+
+       :initial-cost initial-cost
+       :initial-solution-signature initial-solution-signature
+       :initial-solution-shared-p initial-solution-shared-p
+       :initial-solution-source initial-solution-source
+
+       :best-cost best-cost
+       :final-cost final-cost
+
+       :gap
+       (if known-best
+           (* 100.0
+              (/ (- best-cost known-best)
+                 known-best))
+           0.0)
+
+       :iterations iter
+
+       :accepted-improvements accepted-improvements
+
+       :invalid-neighbors invalid-neighbors
+       :no-improvement-neighbors no-improvement-neighbors
+       :timeout-neighbors timeout-neighbors
+
+       :generation-tries generation-tries-total
+       :neighbors-evaluated neighbors-evaluated-total
+
+       :best-iteration best-iteration
+       :stagnation-iterations no-improve
+
+       :time (elapsed-seconds)
+       :elapsed-time-seconds (elapsed-seconds)
+
+       :feasible t
+       :status "ok"
+       :error ""
+
+       :ivns-strings-generated-total strings-generated-total
+       :ivns-strings-valid-total strings-valid-total
+       :ivns-strings-invalid-total strings-invalid-total
+       :ivns-strings-evaluated-total strings-evaluated-total
+       :ivns-strings-selected-total strings-selected-total
+       :ivns-strings-accepted-total strings-accepted-total
+       :ivns-unique-strings-total (hash-table-count unique-strings)
+
+       :ivns-reject-too-many-r reject-too-many-r
+       :ivns-reject-too-short reject-too-short
+       :ivns-reject-too-long reject-too-long
+       :ivns-reject-unbalanced reject-unbalanced
+       :ivns-reject-missing-required-symbol reject-missing-required-symbol
+       :ivns-reject-forbidden-expensive-pattern reject-forbidden-expensive-pattern
+       :ivns-reject-semantic-invalid reject-semantic-invalid
+       :ivns-reject-duplicated-string reject-duplicated-string
+       :ivns-reject-generation-limit-reached reject-generation-limit-reached
+       :ivns-reject-unknown reject-unknown
+
+       :trace (reverse trace)
+       :best-solution best))))
+
+#+END_SRC
+
+
+* Cómo ejecutar los experimentos
+
+Esta sección describe cómo ejecutar las pruebas experimentales de VNS e IVNS,
+cómo guardar los resultados en CSV y cómo validar que los datos quedaron listos
+para el análisis estadístico.
+
+Todos los comandos se ejecutan desde la raíz del proyecto:
+
+cd ~/Escritorio/Mio/tesis/Tareas/Tarea\ mayo/vrp
+
+** Preparar carpetas
+
+mkdir -p logs results results/oficiales commands backups
+
+** Tanglear todos los archivos principales
+
+Antes de correr experimentos se recomienda tanglear los tres archivos principales:
+
+emacs --batch vrp-suite/vrp-vns.org -f org-babel-tangle 
+2>&1 | tee logs/tangle-vrp-vns-final.log
+
+emacs --batch vrp-suite/ivns-grammar.org -f org-babel-tangle 
+2>&1 | tee logs/tangle-ivns-grammar-final.log
+
+emacs --batch vrp-suite/experiments-vns-ivns.org -f org-babel-tangle 
+2>&1 | tee logs/tangle-experiments-final.log
+
+
+** Cargar la infraestructura experimental
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(format t "~%LOAD-OK-EXPERIMENTS~%")' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/load-experiments-final.log
+
+
+** Ejecutar un smoke test VNS vs IVNS
+
+Esta prueba ejecuta VNS e IVNS sobre =A-n33-k5= con dos semillas. Sirve para
+verificar que ambos algoritmos corren, que IVNS genera cadenas y que ambos
+parten de la misma solución inicial cuando se activa =shared-initial-solution-p=.
+
+rm -f results/oficiales/summary-smoke-main.csv
+rm -f results/oficiales/trace-smoke-main.csv
+
+timeout 30m sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :ivns)' 
+--eval '(configure-ivns-complexity-profile :baseline)' 
+--eval '(clear-generated-strings)' 
+--eval '(in-package :vrp-experiments)' 
+--eval '(run-thesis-experiments
+:algorithms (list :vns :ivns)
+:instances (list vrp::a-n33-k5-problem)
+:seeds (list 1 2)
+:shared-initial-solution-p t
+:max-iter 10
+:kmax 2
+:max-no-improve 5
+:shake-max-tries 5
+:generation-max-tries 50
+:ivns-max-neighborhood-seconds 0.10
+:reset-generated-strings-on-improvement-p t
+:vnd-mode :best
+:vnd-max-rounds 3
+:vnd-max-no-improve 2
+:time-limit-seconds 60
+:summary-file "results/oficiales/summary-smoke-main.csv"
+:trace-file "results/oficiales/trace-smoke-main.csv")' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/run-smoke-main.log
+
+
+** Helper recomendado para bloques experimentales
+
+Para corridas oficiales se recomienda usar el script =run_direct_block.sh=, que
+recibe los parámetros principales del experimento y valida los CSV generados.
+
+Formato general:
+
+./run_direct_block.sh 
+NOMBRE_CORRIDA 
+INSTANCIA 
+"SEMILLAS" 
+"ALGORITMOS" 
+PERFIL_IVNS 
+MODO_VND 
+TIEMPO_VECINDAD_IVNS 
+SHARED_INITIAL 
+TIME_LIMIT_INTERNO 
+GENERATION_MAX_TRIES 
+TIMEOUT_TERMINAL
+
+Si se desea comparar la política de reinicio de cadenas, debe pasarse
+=:reset-generated-strings-on-improvement-p= directamente a
+=run-thesis-experiments= o adaptar el helper para recibir ese valor.
+
+
+Ejemplo:
+
+./run_direct_block.sh 
+main-best-baseline-0p05-a-n33-k5-s01-05 
+vrp::a-n33-k5-problem 
+"(list 1 2 3 4 5)" 
+"(list :vns :ivns)" 
+baseline 
+best 
+0.05 
+t 
+45 
+50 
+30m
+
+** Experimento principal VNS vs IVNS
+
+El experimento principal compara VNS e IVNS con el perfil =baseline= y tiempo
+de vecindad IVNS =0.05=. Se evalúan tres instancias, tres modos de búsqueda
+local y treinta semillas.
+
+Diseño:
+
+- algoritmos: VNS e IVNS;
+- perfil IVNS: =baseline=;
+- tiempo de vecindad IVNS: =0.05=;
+- reinicio de cadenas IVNS al mejorar: activado por defecto;
+- modos: =best=, =first=, =random=;
+- instancias: =A-n33-k5=, =A-n65-k9=, =A-n80-k10=;
+- semillas: 1 a 30;
+- total esperado: 540 filas =summary=.
+
+Crear el script:
+
+cat > commands/10-main-vns-ivns-baseline.sh <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTANCES=(
+"a-n33-k5 vrp::a-n33-k5-problem 45 30m"
+"a-n65-k9 vrp::a-n65-k9-problem 60 45m"
+"a-n80-k10 vrp::a-n80-k10-problem 75 60m"
+)
+
+BLOCKS=(
+"s01-05 (list 1 2 3 4 5)"
+"s06-10 (list 6 7 8 9 10)"
+"s11-15 (list 11 12 13 14 15)"
+"s16-20 (list 16 17 18 19 20)"
+"s21-25 (list 21 22 23 24 25)"
+"s26-30 (list 26 27 28 29 30)"
+)
+
+MODES=(
+"best"
+"first"
+"random"
+)
+
+for mode in "${MODES[@]}"; do
+for inst_item in "${INSTANCES[@]}"; do
+read -r INST_LABEL INST_SYMBOL INTERNAL_LIMIT EXTERNAL_TIMEOUT <<< "$inst_item"
+
+for block_item in "${BLOCKS[@]}"; do
+  BLOCK_LABEL="${block_item%% *}"
+  SEEDS_EXPR="${block_item#* }"
+
+  ./run_direct_block.sh \
+    main-${mode}-baseline-0p05-${INST_LABEL}-${BLOCK_LABEL} \
+    ${INST_SYMBOL} \
+    "${SEEDS_EXPR}" \
+    "(list :vns :ivns)" \
+    baseline \
+    ${mode} \
+    0.05 \
+    t \
+    ${INTERNAL_LIMIT} \
+    50 \
+    ${EXTERNAL_TIMEOUT}
+done
+
+done
+done
+BASH
+
+chmod +x commands/10-main-vns-ivns-baseline.sh
+
+
+Ejecutar:
+
+bash commands/10-main-vns-ivns-baseline.sh 
+2>&1 | tee logs/run-main-vns-ivns-baseline.log
+
+
+** Experimentos IVNS-only
+
+Estos experimentos permiten analizar internamente el comportamiento de IVNS bajo
+distintos perfiles y tiempos de vecindad. No se comparan directamente contra VNS.
+
+Diseño:
+
+- algoritmo: IVNS;
+- modo: =best=;
+- perfiles: =baseline=, =efg-medium=, =efg-high=;
+- tiempos: =0.10= y =0.20=;
+- reinicio de cadenas IVNS al mejorar: activado por defecto;
+- instancias: =A-n33-k5=, =A-n65-k9=, =A-n80-k10=;
+- semillas:
+
+  - =baseline=: 1 a 30;
+  - =efg-medium=: 1 a 30;
+  - =efg-high=: 1 a 15;
+- total esperado: 450 filas =summary=.
+
+Crear script =baseline=:
+
+cat > commands/20-ivns-only-baseline.sh <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTANCES=(
+"a-n33-k5 vrp::a-n33-k5-problem 45 30m"
+"a-n65-k9 vrp::a-n65-k9-problem 60 45m"
+"a-n80-k10 vrp::a-n80-k10-problem 75 60m"
+)
+
+BLOCKS=(
+"s01-05 (list 1 2 3 4 5)"
+"s06-10 (list 6 7 8 9 10)"
+"s11-15 (list 11 12 13 14 15)"
+"s16-20 (list 16 17 18 19 20)"
+"s21-25 (list 21 22 23 24 25)"
+"s26-30 (list 26 27 28 29 30)"
+)
+
+TIMES=(
+"0p10 0.10"
+"0p20 0.20"
+)
+
+for time_item in "${TIMES[@]}"; do
+read -r TIME_LABEL TIME_VALUE <<< "$time_item"
+
+for inst_item in "${INSTANCES[@]}"; do
+read -r INST_LABEL INST_SYMBOL INTERNAL_LIMIT EXTERNAL_TIMEOUT <<< "$inst_item"
+
+for block_item in "${BLOCKS[@]}"; do
+  BLOCK_LABEL="${block_item%% *}"
+  SEEDS_EXPR="${block_item#* }"
+
+  ./run_direct_block.sh \
+    ivns-baseline-${TIME_LABEL}-${INST_LABEL}-${BLOCK_LABEL} \
+    ${INST_SYMBOL} \
+    "${SEEDS_EXPR}" \
+    "(list :ivns)" \
+    baseline \
+    best \
+    ${TIME_VALUE} \
+    nil \
+    ${INTERNAL_LIMIT} \
+    50 \
+    ${EXTERNAL_TIMEOUT}
+done
+
+done
+done
+BASH
+
+chmod +x commands/20-ivns-only-baseline.sh
+
+Crear script =efg-medium=:
+
+cat > commands/21-ivns-only-efg-medium.sh <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTANCES=(
+"a-n33-k5 vrp::a-n33-k5-problem 45 30m"
+"a-n65-k9 vrp::a-n65-k9-problem 60 45m"
+"a-n80-k10 vrp::a-n80-k10-problem 75 60m"
+)
+
+BLOCKS=(
+"s01-05 (list 1 2 3 4 5)"
+"s06-10 (list 6 7 8 9 10)"
+"s11-15 (list 11 12 13 14 15)"
+"s16-20 (list 16 17 18 19 20)"
+"s21-25 (list 21 22 23 24 25)"
+"s26-30 (list 26 27 28 29 30)"
+)
+
+TIMES=(
+"0p10 0.10"
+"0p20 0.20"
+)
+
+for time_item in "${TIMES[@]}"; do
+read -r TIME_LABEL TIME_VALUE <<< "$time_item"
+
+for inst_item in "${INSTANCES[@]}"; do
+read -r INST_LABEL INST_SYMBOL INTERNAL_LIMIT EXTERNAL_TIMEOUT <<< "$inst_item"
+
+for block_item in "${BLOCKS[@]}"; do
+  BLOCK_LABEL="${block_item%% *}"
+  SEEDS_EXPR="${block_item#* }"
+
+  ./run_direct_block.sh \
+    ivns-efg-medium-${TIME_LABEL}-${INST_LABEL}-${BLOCK_LABEL} \
+    ${INST_SYMBOL} \
+    "${SEEDS_EXPR}" \
+    "(list :ivns)" \
+    efg-medium \
+    best \
+    ${TIME_VALUE} \
+    nil \
+    ${INTERNAL_LIMIT} \
+    50 \
+    ${EXTERNAL_TIMEOUT}
+done
+
+done
+done
+BASH
+
+chmod +x commands/21-ivns-only-efg-medium.sh
+
+Crear script =efg-high=:
+
+cat > commands/22-ivns-only-efg-high.sh <<'BASH'
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTANCES=(
+"a-n33-k5 vrp::a-n33-k5-problem 45 30m"
+"a-n65-k9 vrp::a-n65-k9-problem 60 45m"
+"a-n80-k10 vrp::a-n80-k10-problem 75 60m"
+)
+
+BLOCKS=(
+"s01-05 (list 1 2 3 4 5)"
+"s06-10 (list 6 7 8 9 10)"
+"s11-15 (list 11 12 13 14 15)"
+)
+
+TIMES=(
+"0p10 0.10"
+"0p20 0.20"
+)
+
+for time_item in "${TIMES[@]}"; do
+read -r TIME_LABEL TIME_VALUE <<< "$time_item"
+
+for inst_item in "${INSTANCES[@]}"; do
+read -r INST_LABEL INST_SYMBOL INTERNAL_LIMIT EXTERNAL_TIMEOUT <<< "$inst_item"
+
+for block_item in "${BLOCKS[@]}"; do
+  BLOCK_LABEL="${block_item%% *}"
+  SEEDS_EXPR="${block_item#* }"
+
+  ./run_direct_block.sh \
+    ivns-efg-high-${TIME_LABEL}-${INST_LABEL}-${BLOCK_LABEL} \
+    ${INST_SYMBOL} \
+    "${SEEDS_EXPR}" \
+    "(list :ivns)" \
+    efg-high \
+    best \
+    ${TIME_VALUE} \
+    nil \
+    ${INTERNAL_LIMIT} \
+    50 \
+    ${EXTERNAL_TIMEOUT}
+done
+
+done
+done
+BASH
+
+chmod +x commands/22-ivns-only-efg-high.sh
+
+
+Ejecutar todos los IVNS-only:
+
+bash commands/20-ivns-only-baseline.sh 
+2>&1 | tee logs/run-ivns-only-baseline.log
+
+bash commands/21-ivns-only-efg-medium.sh 
+2>&1 | tee logs/run-ivns-only-efg-medium.log
+
+bash commands/22-ivns-only-efg-high.sh 
+2>&1 | tee logs/run-ivns-only-efg-high.log
+
+
+** Pruebas exploratorias de parámetros
+
+Además de los experimentos oficiales, pueden hacerse pruebas exploratorias para
+analizar si IVNS mejora con más presupuesto de búsqueda. Estas corridas deben
+guardarse con prefijo =tune= o =tune2= para no mezclarlas con los resultados
+oficiales.
+
+Ejemplo con =baseline= y tiempo 0.20:
+
+./run_direct_block.sh 
+tune-main-best-baseline-0p20-a-n33-k5-s01-05 
+vrp::a-n33-k5-problem 
+"(list 1 2 3 4 5)" 
+"(list :vns :ivns)" 
+baseline 
+best 
+0.20 
+t 
+45 
+50 
+30m
+
+
+Ejemplo con =efg-medium= y tiempo 0.10:
+
+./run_direct_block.sh 
+tune-main-best-efg-medium-0p10-a-n33-k5-s01-05 
+vrp::a-n33-k5-problem 
+"(list 1 2 3 4 5)" 
+"(list :vns :ivns)" 
+efg-medium 
+best 
+0.10 
+t 
+45 
+50 
+30m
+
+Estas pruebas exploratorias no sustituyen los experimentos oficiales, sino que
+sirven para estudiar el comportamiento de IVNS ante diferentes parámetros.

@@ -1,0 +1,2340 @@
+#+TITLE: VNS
+#+AUTHOR: Olivia Ibañez Mustelier
+
+* Descripción
+
+Este archivo implementa una integración completa de la metaheurística
+Variable Neighborhood Search (VNS) sobre el framework base del proyecto VRP.
+
+El objetivo principal del módulo es proporcionar una plataforma
+experimental, extensible y reproducible para estudiar el comportamiento
+de distintas vecindades y estrategias de búsqueda aplicadas al problema
+de enrutamiento de vehículos con restricción de capacidad (CVRP).
+
+El archivo NO reimplementa los componentes internos del framework base.
+En particular, reutiliza directamente:
+
+- operadores de vecindad;
+- exploración de vecindarios;
+- simulación del problema;
+- cálculo de costos;
+- estructuras de soluciones;
+- criterios declarativos.
+
+Sobre esa base, este módulo añade una capa experimental y de integración
+que permite:
+
+- construir soluciones iniciales reales;
+- generar vecinos estructurales;
+- seleccionar vecinos según distintos modos;
+- validar movimientos usando costos reales;
+- ejecutar VND;
+- ejecutar SHAKE;
+- ejecutar el ciclo completo VNS;
+- recopilar métricas experimentales;
+- generar trazas reproducibles;
+- facilitar validación estadística posterior.
+
+El archivo se encuentra organizado siguiendo el flujo lógico completo
+del algoritmo VNS.
+
+El orden general del módulo es el siguiente:
+
+1. definición del paquete;
+2. variables globales y configuración;
+3. definición de vecindades adicionales;
+4. funciones auxiliares generales;
+5. construcción de solución inicial;
+6. manejo y reinicio de estado;
+7. generación de vecinos;
+8. inspección de vecinos;
+9. selección de vecinos;
+10. validación de delta-cost;
+11. VND;
+12. SHAKE;
+13. utilidades experimentales;
+14. VNS experimental;
+15. VNS completo;
+16. runners de prueba;
+17. instrucciones de ejecución.
+
+La estructura intenta separar claramente:
+
+- utilidades auxiliares;
+- exploración de vecindarios;
+- intensificación;
+- diversificación;
+- ejecución experimental;
+- runners de depuración.
+
+Esto permite mantener el archivo modular, facilitar depuración y preparar
+la infraestructura necesaria para experimentación masiva y comparación
+posterior con IVNS.
+
+
+* Paquete
+
+Esta sección indica que todo el código de este archivo trabaja dentro del paquete principal del proyecto VRP.
+
+Su función es permitir que las definiciones de funciones y variables queden integradas con el resto del framework base.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(in-package :vrp)
+#+END_SRC
+
+
+* Estado global
+
+Aquí se agrupan variables globales de apoyo.
+
+Estas variables no implementan directamente el algoritmo, pero almacenan información útil sobre el problema actual, 
+la solución inicial, los vecinos generados, la última selección realizada y algunas opciones de ejecución.
+
+Su propósito principal es facilitar depuración, trazas de ejecución y análisis de resultados.
+
+** Variables de estado general
+
+- =*vrp-vns-current-problem*=: guarda el problema VRP con el que se está trabajando.
+- =*vrp-vns-last-initial-solution*=: conserva la última solución inicial construida.
+
+** Variables de vecinos generados
+
+- =*vrp-vns-last-generated-neighbors*=: almacena los vecinos generados en la última exploración.
+- =*vrp-vns-last-criterion*=: guarda el criterio usado en la última generación de vecinos.
+- =*vrp-vns-last-max-neighbors*=: recuerda el límite de vecinos pedido en la última ejecución.
+- =*vrp-vns-neighbor-counter*=: cuenta cuántos vecinos se han generado.
+
+** Variables de selección
+
+- =*vrp-vns-last-selected-neighbor*=: guarda el último vecino seleccionado.
+- =*vrp-vns-last-selected-delta*=: almacena el último cambio de costo calculado.
+- =*vrp-vns-last-selection-mode*=: recuerda el modo de selección usado.
+
+** Parámetros de apoyo
+
+- =*vrp-vns-default-criteria*=: lista base de criterios usados por el VNS.
+- =*vrp-vns-debug*=: activa o desactiva mensajes de depuración.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(defparameter *vrp-vns-current-problem* nil)
+(defparameter *vrp-vns-last-initial-solution* nil)
+
+(defparameter *vrp-vns-last-generated-neighbors* nil)
+(defparameter *vrp-vns-last-criterion* nil)
+(defparameter *vrp-vns-last-max-neighbors* nil)
+(defparameter *vrp-vns-neighbor-counter* 0)
+
+(defparameter *vrp-vns-last-selected-neighbor* nil)
+(defparameter *vrp-vns-last-selected-delta* nil)
+(defparameter *vrp-vns-last-selection-mode* nil)
+
+(defparameter *vrp-vns-default-criteria* '(rab rarb rarac))
+
+(defparameter *vrp-vns-extended-criteria*
+  '(rab
+    rarb
+    rarac
+    rffe
+    rarbac
+    rbrbff
+    roropt
+    rchain))
+
+(defparameter *vrp-vns-debug* nil)
+#+END_SRC
+
+
+* Vecindades adicionales
+
+Esta sección define vecindades adicionales incorporadas sobre el framework
+base del VRP.
+
+El objetivo de estas vecindades es ampliar la capacidad de exploración
+del VNS mediante movimientos más complejos sobre rutas y subrutas.
+
+Cada vecindad se expresa usando el lenguaje declarativo ya existente
+en el framework.
+
+Estas definiciones NO implementan operadores nuevos desde cero, sino
+que reutilizan operadores ya disponibles en el sistema base.
+
+Las vecindades añadidas incluyen:
+
+- intercambio de subrutas;
+- reinserción de subrutas;
+- movimientos entre rutas;
+- movimientos tipo Or-Opt;
+- cadenas de reinserción;
+- variantes aproximadas de 2-opt.
+
+Estas vecindades son utilizadas posteriormente tanto por VND como por
+SHAKE y por el ciclo principal del VNS.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+
+;;; ============================================================
+;;; VECINDADES ADICIONALES PARA VNS
+;;; ============================================================
+
+(defparameter rffe
+  '((select-route r1)
+    (select-subroute z1 from r1)
+    (select-subroute z2 from r1)
+    (swap-subroutes z1 z2)))
+
+(defparameter rarbac
+  '((select-route r1)
+    (select-client c1 from r1)
+    (select-route r2)
+    (insert-client c1 into r2)))
+
+(defparameter rbrbff
+  '((select-route r1)
+    (select-subroute z1 from r1)
+    (select-route r2)
+    (select-subroute z2 from r2)
+    (swap-subroutes z1 z2)))
+
+(defparameter r2opt
+  '((select-route r1)
+    (select-subroute z1 from r1)
+    (reverse-subroute z1)))
+
+(defparameter r2optx
+  '((select-route r1)
+    (select-subroute z1 from r1)
+    (select-route r2)
+    (select-subroute z2 from r2)
+    (swap-subroutes-after z1 z2)))
+
+(defparameter roropt
+  '((select-route r1)
+    (select-subroute z1 from r1)
+    (insert-subroute z1 into r1)))
+
+(defparameter rchain
+  '((select-route r1)
+    (select-subroute z1 from r1)
+    (select-route r2)
+    (insert-subroute z1 into r2)))
+
+#+END_SRC
+
+
+* Helpers generales
+
+Esta sección reúne funciones auxiliares de uso frecuente.
+
+No implementan directamente VND, SHAKE o el ciclo principal del VNS, 
+pero resuelven tareas básicas necesarias para que esas partes funcionen con claridad y robustez.
+
+En particular, estas funciones:
+- imprimen resúmenes legibles;
+- recalculan costos reales;
+- convierten soluciones a formatos compactos;
+- verifican si un vecino es válido.
+
+** Funciones auxiliares básicas
+
+- =vrp-vns-print-banner=: imprime separadores visuales para organizar la salida.
+- =vrp-vns-debug-log=: muestra mensajes de depuración solo si el modo debug está activo.
+- =vrp-vns-refresh-solution-cost=: recalcula el costo real de una solución usando el motor del VRP.
+- =vrp-vns-solution->route-id-lists=: convierte una solución en una representación compacta basada en IDs de clientes.
+- =vrp-vns-solution-signature=: genera una representación estable de una solución inicial a partir de las rutas y los IDs de clientes que contiene. 
+- =vrp-vns-print-solution-summary=: imprime un resumen corto y legible de una solución.
+- =vrp-vns-neighbor-signature=: obtiene una firma estructural de un vecino para compararlo con otros.
+- =vrp-vns-compute-real-delta=: calcula el cambio real de costo entre dos soluciones.
+- =vrp-vns-valid-neighbor-p=: verifica si un vecino existe y si realmente es distinto de la solución original.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+(defun vrp-vns-print-banner (title)
+  "Imprime separadores visuales para organizar la salida."
+  (format t "~%==================================================~%")
+  (format t "~a~%" title)
+  (format t "==================================================~%")
+  (finish-output))
+
+(defun vrp-vns-debug-log (fmt &rest args)
+  "Imprime logs solo si debug está activo."
+  (when *vrp-vns-debug*
+    (apply #'format t fmt args)
+    (finish-output)))
+
+(defun vrp-vns-refresh-solution-cost (solution problem)
+  "Recalcula el costo real usando el motor del VRP.
+   Esto es fundamental para evitar errores en delta-cost."
+  (let ((action (basic-cvrp-action)))
+    (simulate-solution solution problem action)
+    (setf (cost solution)
+          (get-cost-from-action action))
+    solution))
+
+(defun vrp-vns-solution->route-id-lists (solution)
+  "Convierte la solución a una forma compacta (solo IDs de clientes)."
+  (loop for route in (routes solution)
+        collect (loop for client in (clients route)
+                      collect (id client))))
+
+(defun vrp-vns-solution-signature (solution)
+  "Construye una firma determinista para una solución VRP.
+
+   La firma usa solamente los ids de clientes por ruta.
+   No depende de direcciones de memoria ni de la impresión de objetos Lisp.
+
+   Sirve para verificar si dos corridas parten de la misma solución inicial."
+  (with-output-to-string (stream)
+
+    (loop
+      for route-list in (vrp-vns-solution->route-id-lists solution)
+      for index from 1
+
+      do
+        (when (> index 1)
+          (format stream "|"))
+
+        (format stream "~{~a~^,~}" route-list))))
+
+(defun vrp-vns-print-solution-summary (solution &key (label "SOLUCION"))
+  "Imprime resumen corto de una solución."
+  (format t "~%[~a] id=~a | cost=~a | routes=~a~%"
+          label
+          (id solution)
+          (cost solution)
+          (length (routes solution)))
+  (loop for route-ids in (vrp-vns-solution->route-id-lists solution)
+        for i from 1 do
+          (format t "  R~a: ~a~%" i route-ids))
+  (finish-output)
+  solution)
+
+(defun vrp-vns-neighbor-signature (neighbor)
+  "Firma estructural del vecino (para evitar duplicados)."
+  (vrp-vns-solution->route-id-lists neighbor))
+
+(defun vrp-vns-compute-real-delta (original-solution neighbor-solution)
+  "Delta real basado en costos del VRP."
+  (if neighbor-solution
+      (- (cost neighbor-solution)
+         (cost original-solution))
+      0))
+
+(defun vrp-vns-solution-client-ids (solution)
+  "Devuelve los IDs de todos los clientes presentes en la solución."
+  (loop for route in (routes solution)
+        append (loop for client in (clients route)
+                     collect (id client))))
+
+(defun vrp-vns-duplicate-client-p (ids)
+  "Devuelve T si hay clientes repetidos."
+  (/= (length ids)
+      (length (remove-duplicates ids))))
+
+(defun vrp-vns-same-client-set-p (solution-a solution-b)
+  "Comprueba que dos soluciones tengan exactamente los mismos clientes."
+  (let ((ids-a (sort (copy-list (vrp-vns-solution-client-ids solution-a)) #'<))
+        (ids-b (sort (copy-list (vrp-vns-solution-client-ids solution-b)) #'<)))
+    (equal ids-a ids-b)))
+
+(defun vrp-vns-solution-structurally-valid-p (original neighbor)
+  "Verifica que NEIGHBOR sea estructuralmente compatible con ORIGINAL."
+  (and neighbor
+       (routes neighbor)
+       (every (lambda (route)
+                (and route
+                     (listp (clients route))))
+              (routes neighbor))
+       (numberp (cost neighbor))
+       (>= (cost neighbor) 0)
+       (not (vrp-vns-duplicate-client-p
+             (vrp-vns-solution-client-ids neighbor)))
+       (vrp-vns-same-client-set-p original neighbor)))
+
+(defun vrp-vns-valid-neighbor-p (original neighbor)
+  "Verifica que un vecino sea válido y diferente del original."
+  (and neighbor
+       (vrp-vns-solution-structurally-valid-p original neighbor)
+       (not (equal (vrp-vns-neighbor-signature original)
+                   (vrp-vns-neighbor-signature neighbor)))))
+
+#+END_SRC
+
+
+* Solución inicial real
+
+Esta función construye la solución inicial con los mecanismos ya existentes en el framework base.
+
+Su papel es servir como punto de partida válido para el resto del algoritmo. 
+Además, actualiza el costo real de la solución antes de guardarla, lo cual evita inconsistencias posteriores al comparar soluciones o calcular deltas.
+
+** vrp-vns-make-initial-solution
+
+Construye una solución inicial del problema usando el constructor elegido.
+
+Qué hace:
+- crea la solución inicial;
+- verifica que se haya construido correctamente;
+- recalcula su costo real;
+- actualiza variables globales de contexto.
+
+Para qué sirve:
+- proporcionar una base consistente para generación de vecinos, selección, VND y VNS.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+(defun vrp-vns-make-initial-solution
+    (&optional (problem a-n33-k5-problem)
+               (constructor :random))
+  "Construye solución inicial del VRP."
+  (let ((solution
+          (ecase constructor
+            (:random
+             (make-initial-solution-for-cvrp-random problem))
+            (:deterministic
+             (make-initial-solution-for-cvrp-deterministic problem)))))
+
+    (unless solution
+      (error "[VRP-VNS] No se pudo construir la solución inicial."))
+
+    ;; IMPORTANTE: recalcular costo real
+    (vrp-vns-refresh-solution-cost solution problem)
+
+    (setf *vrp-vns-current-problem* problem)
+    (setf *vrp-vns-last-initial-solution* solution)
+
+    solution))
+#+END_SRC
+
+* Reset de estado
+
+Estas funciones limpian información auxiliar guardada en variables globales.
+
+Se usan antes de nuevas fases de generación o selección para evitar mezclar resultados viejos con resultados nuevos.
+
+** Funciones de reinicio
+
+- =vrp-vns-reset-neighbors-state=: borra el historial de vecinos generados y reinicia su contador.
+- =vrp-vns-reset-selection-state=: borra la información guardada sobre la última selección.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(defun vrp-vns-reset-neighbors-state ()
+  (setf *vrp-vns-last-generated-neighbors* nil)
+  (setf *vrp-vns-neighbor-counter* 0)
+  t)
+
+(defun vrp-vns-reset-selection-state ()
+  (setf *vrp-vns-last-selected-neighbor* nil)
+  (setf *vrp-vns-last-selected-delta* nil)
+  (setf *vrp-vns-last-selection-mode* nil)
+  t)
+#+END_SRC
+
+* Generación de vecinos resumida
+
+Esta sección implementa una capa de integración con el framework VRP para generar vecinos reales a partir de un criterio dado.
+
+La idea no es reimplementar el vecindario, sino aprovechar el motor ya existente 
+y capturar una cantidad controlada de vecinos para analizarlos, mostrarlos o usarlos después.
+
+** Funciones de generación de vecinos
+
+- =vrp-vns-print-generated-neighbor=: imprime un resumen corto de cada vecino generado.
+- =vrp-vns-generate-neighbors=: genera vecinos reales usando un criterio del framework y guarda los resultados.
+  
+** Idea general de =vrp-vns-generate-neighbors=
+
+La función sigue este esquema:
+
+1. toma una solución base, o construye una si no se recibió ninguna;
+2. obtiene la descripción del criterio;
+3. prepara un explorador del vecindario usando el framework;
+4. reinicia el estado previo de generación;
+5. ejecuta la exploración;
+6. guarda los vecinos encontrados;
+7. devuelve la lista final de vecinos.
+
+Su utilidad principal es permitir inspeccionar qué está generando realmente un criterio del sistema.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(defun vrp-vns-print-generated-neighbor (neighbor index criterion-symbol)
+  (format t "~%Vecino #~a | criterio=~a | rutas=~a~%"
+          index criterion-symbol (length (routes neighbor)))
+  (format t "  Firma: ~a~%" (vrp-vns-neighbor-signature neighbor))
+  (finish-output))
+
+(defun vrp-vns-generate-neighbors
+    (&key
+       (problem a-n33-k5-problem)
+       (solution nil)
+       (criterion-symbol 'rab)
+       (max-neighbors 5)
+       (constructor :random)
+       (quiet nil))
+
+  "Genera vecinos estructurales reales usando un criterio del framework."
+  (let* ((sol (or solution
+                  (vrp-vns-make-initial-solution problem constructor)))
+         (criterion-description (symbol-value criterion-symbol))
+         (explorer
+           (let ((*package* (find-package :vrp)))
+             (make-neighborhood-criterion
+              criterion-description
+              +exhaustive-search-strategy+
+              +search-with-a-basic-wc+
+              :inside-macro
+              `((let ((neighbor (clone-working-copy-as-solution wc)))
+                  (incf *vrp-vns-neighbor-counter*)
+                  (push neighbor *vrp-vns-last-generated-neighbors*)
+                  ,(if quiet
+                       nil
+                       `(vrp-vns-print-generated-neighbor
+                         neighbor
+                         *vrp-vns-neighbor-counter*
+                         ',criterion-symbol))
+                  (when (and ,max-neighbors
+                             (>= *vrp-vns-neighbor-counter* ,max-neighbors))
+                    (stop-neighborhood-search))))))))
+
+    (setf *vrp-vns-last-criterion* criterion-symbol)
+    (setf *vrp-vns-last-max-neighbors* max-neighbors)
+
+    (vrp-vns-reset-neighbors-state)
+
+    (unless quiet
+      (vrp-vns-print-banner
+       (format nil "GENERACION DE VECINOS :: ~a" criterion-symbol))
+      (vrp-vns-print-solution-summary sol :label "INICIAL")
+      (format t "Mostrando hasta ~a vecinos.~%" max-neighbors)
+      (finish-output))
+
+    (let ((*package* (find-package :vrp)))
+      (funcall explorer sol problem (basic-cvrp-action)))
+
+    (setf *vrp-vns-last-generated-neighbors*
+          (reverse *vrp-vns-last-generated-neighbors*))
+
+    (unless quiet
+      (format t "~%Total vecinos guardados: ~a~%"
+              (length *vrp-vns-last-generated-neighbors*))
+      (finish-output))
+
+    *vrp-vns-last-generated-neighbors*))
+#+END_SRC
+
+* Inspección de vecinos
+
+Después de generar vecinos, estas funciones permiten revisarlos de manera ordenada.
+
+Su propósito es ayudar a inspeccionar resultados sin tener que leer estructuras internas complejas del framework.
+
+** Funciones de resumen de vecinos
+
+- =vrp-vns-print-last-neighbors-summary=: muestra un resumen global de los últimos vecinos guardados.
+- =vrp-vns-print-neighbor-at=: muestra en detalle el vecino almacenado en una posición dada.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(defun vrp-vns-print-last-neighbors-summary ()
+  (vrp-vns-print-banner "RESUMEN DE VECINOS GUARDADOS")
+  (format t "Criterio usado: ~a~%" *vrp-vns-last-criterion*)
+  (format t "Cantidad guardada: ~a~%"
+          (length *vrp-vns-last-generated-neighbors*))
+  (loop for neighbor in *vrp-vns-last-generated-neighbors*
+        for i from 1 do
+          (format t "~%Vecino #~a | tipo=~a | rutas=~a~%"
+                  i
+                  (type-of neighbor)
+                  (length (routes neighbor)))
+          (format t "  Firma: ~a~%" (vrp-vns-neighbor-signature neighbor)))
+  (finish-output)
+  *vrp-vns-last-generated-neighbors*)
+
+(defun vrp-vns-print-neighbor-at (index)
+  (let ((neighbor (nth (1- index) *vrp-vns-last-generated-neighbors*)))
+    (if neighbor
+        (progn
+          (vrp-vns-print-banner
+           (format nil "VECINO GUARDADO #~a" index))
+          (vrp-vns-print-solution-summary neighbor :label "VECINO")
+          neighbor)
+        (format t "~%[VRP-VNS] No existe vecino en posición ~a.~%" index))))
+#+END_SRC
+
+* Selección de vecinos
+
+En esta sección ya no se generan todos los vecinos posibles, sino que se selecciona uno según un modo de búsqueda.
+
+Esta parte sirve de puente entre los criterios declarativos del framework y la lógica del VNS, 
+donde interesa elegir un vecino concreto para seguir avanzando.
+
+** Funciones de selección
+
+- =vrp-vns-make-selector=: construye una función de selección de vecinos según el modo indicado.
+- =vrp-vns-select-neighbor=: selecciona un vecino y calcula su delta real de costo.
+
+** Modos de selección
+
+- =:best=: selecciona la mejor mejora encontrada.
+- =:first=: selecciona la primera mejora encontrada.
+- =:random=: selecciona una mejora aleatoria.
+
+** Idea general de =vrp-vns-select-neighbor=
+
+La función realiza el siguiente proceso:
+
+1. obtiene o construye una solución base;
+2. crea el selector apropiado según el modo;
+3. limpia el estado anterior de selección;
+4. ejecuta la selección usando el framework;
+5. recalcula el delta real usando costos efectivos;
+6. guarda el resultado en variables globales;
+7. devuelve el vecino seleccionado y su delta.
+
+Esta función es clave porque convierte la salida del framework en una decisión usable por VND y VNS.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(defun vrp-vns-make-selector (criterion-symbol mode)
+  "Construye una función de búsqueda usando el framework base.
+
+   MODE determina cómo se selecciona el vecino dentro de la vecindad:
+
+   - :best selecciona la mejor mejora encontrada.
+   - :first selecciona la primera mejora encontrada.
+   - :random selecciona una mejora aleatoria.
+   - :random-improvement es un alias explícito de :random.
+
+   La estrategia :random no significa aceptar cualquier vecino al azar,
+   sino usar la estrategia de mejora aleatoria definida por el framework."
+  (let* ((criterion-description
+          (symbol-value criterion-symbol))
+
+         (selection-strategy
+          (ecase mode
+            (:best
+             +best-improvement+)
+
+            (:first
+             +first-improvement+)
+
+            (:random
+             +random-improvement+)
+
+            (:random-improvement
+             +random-improvement+))))
+
+    (let ((*package*
+           (find-package :vrp)))
+
+      (make-neighborhood-criterion
+       criterion-description
+       +exhaustive-search-strategy+
+       selection-strategy))))
+
+(defun vrp-vns-select-neighbor
+    (&key
+       (problem a-n33-k5-problem)
+       (solution nil)
+       (criterion-symbol 'rab)
+       (mode :best)
+       (constructor :random)
+       (quiet nil))
+
+  "Selecciona un vecino usando el framework.
+   El delta final se calcula con la diferencia entre costos reales."
+  (let* ((sol (or solution
+                  (vrp-vns-make-initial-solution problem constructor)))
+         (selector (vrp-vns-make-selector criterion-symbol mode))
+         (action (delta-cvrp-action)))
+
+    (vrp-vns-reset-selection-state)
+
+    (unless quiet
+      (vrp-vns-print-banner
+       (format nil "SELECCION DE VECINO :: ~a / ~a"
+               criterion-symbol mode))
+      (vrp-vns-print-solution-summary sol :label "INICIAL"))
+
+    (multiple-value-bind (selected-neighbor returned-delta)
+        (let ((*package* (find-package :vrp)))
+          (funcall selector sol problem action))
+
+      (let ((delta-cost (vrp-vns-compute-real-delta sol selected-neighbor)))
+
+        (setf *vrp-vns-last-selected-neighbor* selected-neighbor)
+        (setf *vrp-vns-last-selected-delta* delta-cost)
+        (setf *vrp-vns-last-selection-mode* mode)
+
+        (vrp-vns-debug-log
+         "~%[DEBUG] returned-delta=~a | robust-delta=~a~%"
+         returned-delta delta-cost)
+
+        (unless quiet
+          (cond
+            (selected-neighbor
+             (format t "~%[RESULTADO] Se encontró vecino.~%")
+             (format t "Delta-cost: ~a~%" delta-cost)
+             (vrp-vns-print-solution-summary
+              selected-neighbor
+              :label "SELECCIONADO"))
+            (t
+             (format t "~%[RESULTADO] No se encontró mejora en ese criterio.~%")
+             (format t "Delta-cost: ~a~%" delta-cost)
+             (finish-output))))
+
+        (values selected-neighbor delta-cost)))))
+#+END_SRC
+
+* Validación del delta
+
+Esta sección comprueba si el cambio de costo reportado por la selección coincide con la diferencia real entre los costos de las soluciones.
+
+Su objetivo es detectar inconsistencias entre el valor devuelto por el framework y el valor realmente observado al comparar soluciones concretas.
+
+** vrp-vns-validate-delta
+
+Valida el delta calculado para un vecino seleccionado.
+
+Qué hace:
+- selecciona un vecino;
+- compara el costo inicial y el costo del vecino;
+- calcula la diferencia real;
+- verifica si coincide con el delta reportado.
+
+Para qué sirve:
+- confirmar que la evaluación de movimientos es consistente.
+
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(defun vrp-vns-validate-delta
+    (&key
+       (problem a-n33-k5-problem)
+       (solution nil)
+       (criterion-symbol 'rab)
+       (mode :best)
+       (constructor :random))
+
+  "Valida el delta comparando diferencia real y delta reportado."
+  (let* ((sol (or solution
+                  (vrp-vns-make-initial-solution problem constructor)))
+         (initial-cost (cost sol))
+         (neighbor nil)
+         (delta nil)
+         (real-difference nil)
+         (ok nil))
+
+    (multiple-value-setq (neighbor delta)
+      (vrp-vns-select-neighbor
+       :problem problem
+       :solution sol
+       :criterion-symbol criterion-symbol
+       :mode mode))
+
+    (vrp-vns-print-banner "VALIDACION DEL DELTA-COST")
+    (format t "Costo inicial: ~a~%" initial-cost)
+
+    (if neighbor
+        (progn
+          (format t "Costo vecino: ~a~%" (cost neighbor))
+          (setf real-difference (- (cost neighbor) initial-cost))
+          (format t "Diferencia real: ~a~%" real-difference)
+          (format t "Delta framework: ~a~%" delta)
+          (setf ok (= real-difference delta))
+          (format t "Coinciden?: ~a~%" ok)
+          (finish-output)
+          ok)
+        (progn
+          (format t "No hubo vecino para validar.~%")
+          (finish-output)
+          nil))))
+#+END_SRC
+
+* Resumen de la última selección
+
+Esta función presenta de forma legible el resultado de la última selección de vecino guardada en el estado global.
+
+Su utilidad es principalmente de inspección y depuración.
+
+** vrp-vns-print-last-selection-summary
+
+Muestra el modo usado, el delta calculado y el vecino seleccionado más reciente.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(defun vrp-vns-print-last-selection-summary ()
+  (vrp-vns-print-banner "ULTIMA SELECCION")
+  (format t "Modo: ~a~%" *vrp-vns-last-selection-mode*)
+  (format t "Delta: ~a~%" *vrp-vns-last-selected-delta*)
+  (if *vrp-vns-last-selected-neighbor*
+      (vrp-vns-print-solution-summary
+       *vrp-vns-last-selected-neighbor*
+       :label "ULTIMO VECINO")
+      (format t "No hay vecino seleccionado guardado.~%"))
+  (finish-output)
+  *vrp-vns-last-selected-neighbor*)
+#+END_SRC
+
+* VND
+
+Esta sección implementa la fase de búsqueda local intensiva del algoritmo.
+
+La lógica general consiste en recorrer una lista de criterios, intentar mejorar la solución actual 
+y reiniciar la exploración cuando aparece una mejora. Si no se mejora durante cierto tiempo, la fase se detiene.
+
+Además de realizar la intensificación de la búsqueda, esta implementación también recopila métricas experimentales 
+relacionadas con el comportamiento interno del proceso de mejora local.
+
+Estas métricas permiten analizar:
+- cuántos vecinos fueron evaluados;
+- cuántas mejoras fueron aceptadas;
+- qué criterios fueron utilizados;
+- cuántas iteraciones reales ejecutó el VND.
+
+Esta información es importante para los experimentos estadísticos y para el análisis del comportamiento interno del algoritmo.
+
+** vrp-vns-vnd
+
+Implementa una versión controlada y experimental de VND.
+
+Qué hace:
+- parte de una solución actual;
+- prueba criterios de vecindad uno por uno;
+- si encuentra mejora, actualiza la solución y reinicia el recorrido;
+- si no mejora, avanza al siguiente criterio;
+- registra estadísticas del proceso;
+- se detiene por límite de iteraciones o por falta de mejora.
+
+Para qué sirve:
+- intensificar la búsqueda antes de volver a diversificar;
+- recopilar información útil para el análisis experimental.
+
+** Idea general de =vrp-vns-vnd=
+
+Pseudocódigo corto:
+
+1. iniciar solución actual;
+2. recorrer criterios en orden;
+3. seleccionar vecino con el criterio actual;
+4. si mejora:
+   - aceptar;
+   - reiniciar recorrido;
+   - actualizar métricas;
+5. si no mejora:
+   - pasar al siguiente criterio;
+6. detenerse cuando se alcance un límite.
+
+Esta función representa la parte intensificadora del VNS y una de las principales fuentes de información experimental del algoritmo.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+
+(defun vrp-vns-vnd
+    (&key
+       (problem a-n33-k5-problem)
+       (solution nil)
+       (criteria *vrp-vns-default-criteria*)
+       (mode :best)
+       (constructor :random)
+       (max-rounds 200)
+       (max-no-improve 20)
+       (quiet nil))
+
+  (let* ((current (or solution
+                      (vrp-vns-make-initial-solution
+                       problem
+                       constructor)))
+
+         (round 0)
+         (index 0)
+
+         (improvements 0)
+         (no-improve 0)
+
+         ;; NUEVO
+         (neighbors-evaluated 0)
+         (accepted-moves 0)
+         (criteria-used '()))
+
+    (unless quiet
+      (vrp-vns-print-banner "VND :: INICIO")
+      (format t "Initial cost: ~a~%" (cost current))
+      (finish-output))
+
+    (loop while (and (< round max-rounds)
+                     (< no-improve max-no-improve)
+                     (< index (length criteria)))
+          do
+
+            (incf round)
+
+            (let* ((criterion (nth index criteria))
+                   (neighbor nil)
+                   (delta 0))
+
+              (push criterion criteria-used)
+
+              (multiple-value-setq (neighbor delta)
+                (vrp-vns-select-neighbor
+                 :problem problem
+                 :solution current
+                 :criterion-symbol criterion
+                 :mode mode
+                 :quiet t))
+
+              (incf neighbors-evaluated)
+
+              (if (and neighbor
+                    (vrp-vns-valid-neighbor-p current neighbor)
+                    (< delta 0))
+
+                  (progn
+                    (incf improvements)
+                    (incf accepted-moves)
+
+                    (setf current neighbor)
+                    (vrp-vns-refresh-solution-cost current problem)
+
+                    (setf index 0)
+                    (setf no-improve 0)
+
+                    (unless quiet
+                      (format t
+                              "~%[MEJORA] round=~a | crit=~a | delta=~a | cost=~a~%"
+                              round
+                              criterion
+                              delta
+                              (cost current))))
+
+                  (progn
+                    (incf index)
+                    (incf no-improve)))))
+
+    (unless quiet
+      (vrp-vns-print-banner "VND :: FIN")
+      (format t "~%Final cost: ~a~%" (cost current))
+      (format t "Rounds: ~a~%" round)
+      (format t "Improvements: ~a~%" improvements)
+      (format t "Neighbors evaluated: ~a~%" neighbors-evaluated))
+
+    (values
+     current
+     round
+     improvements
+     neighbors-evaluated
+     accepted-moves
+     (reverse criteria-used))))
+#+END_SRC
+
+* Shake
+
+Esta sección implementa la fase de diversificación.
+
+Su función es modificar la solución actual mediante movimientos aleatorios controlados, 
+aun cuando dichos movimientos no mejoren inmediatamente la calidad de la solución. 
+La idea es salir de zonas donde la búsqueda local podría quedarse atrapada.
+
+Además de generar perturbaciones, esta implementación registra información experimental relacionada con el proceso de exploración.
+
+Entre las métricas recopiladas se encuentran:
+- cantidad de perturbaciones aplicadas;
+- cantidad total de intentos realizados;
+- vecinos inválidos encontrados;
+- criterios utilizados durante la perturbación.
+
+Esta información permite estudiar la intensidad real del shake y analizar cómo influye la diversificación en el comportamiento del algoritmo.
+
+** vrp-vns-shake
+
+Aplica una perturbación aleatoria sobre la solución actual.
+
+Qué hace:
+- toma una solución;
+- elige criterios aleatorios;
+- intenta generar movimientos válidos;
+- aplica hasta =k= perturbaciones;
+- controla cuántos intentos máximos realizar;
+- recopila estadísticas del proceso.
+
+Para qué sirve:
+- diversificar la búsqueda y preparar una nueva entrada para el VND;
+- analizar experimentalmente el comportamiento de la fase de exploración.
+
+** Helpers internos de shake
+
+Estas funciones auxiliares apoyan la fase de diversificación del VNS.
+
+Su propósito es seleccionar criterios aleatorios, generar perturbaciones
+válidas y construir reinicios controlados cuando el vecindario no logra
+producir movimientos útiles.
+
+Estas funciones permiten reducir bloqueos por vecinos inválidos y mejorar
+la robustez experimental del shake.
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+
+(defun vrp-vns-random-criterion (criteria)
+  "Selecciona un criterio aleatorio."
+  (nth (random (length criteria)) criteria))
+
+(defun vrp-vns-random-restart-solution
+    (&key
+       (problem a-n33-k5-problem)
+       (constructor :random)
+       (reference nil)
+       (max-tries 10))
+
+  "Genera una solución aleatoria válida para usarla como perturbación fuerte."
+  (let ((candidate nil)
+        (tries 0)
+        (accepted nil))
+
+    (loop while (and (not accepted)
+                     (< tries max-tries))
+          do
+            (incf tries)
+
+            (setf candidate
+                  (vrp-vns-make-initial-solution
+                   problem
+                   constructor))
+
+            (when (and candidate
+                       (or (null reference)
+                           (vrp-vns-solution-structurally-valid-p
+                            reference
+                            candidate)))
+              (setf accepted t)))
+
+    (values candidate tries accepted)))
+
+(defun vrp-vns-try-random-shake-move
+    (&key
+       (problem a-n33-k5-problem)
+       (solution nil)
+       (criteria *vrp-vns-default-criteria*)
+       (max-tries 20))
+
+  "Intenta obtener una perturbación válida usando criterios del framework."
+  (let ((neighbor nil)
+        (criterion nil)
+        (tries 0)
+        (accepted nil))
+
+    (loop while (and (not accepted)
+                     (< tries max-tries))
+          do
+            (incf tries)
+
+            (setf criterion
+                  (vrp-vns-random-criterion criteria))
+
+            (multiple-value-bind (candidate delta)
+                (vrp-vns-select-neighbor
+                 :problem problem
+                 :solution solution
+                 :criterion-symbol criterion
+                 :mode :random
+                 :quiet t)
+
+              (declare (ignore delta))
+
+              (when (vrp-vns-valid-neighbor-p solution candidate)
+                (setf neighbor candidate)
+                (setf accepted t))))
+
+    (values neighbor tries accepted criterion)))
+
+#+END_SRC
+
+
+** Idea general de =vrp-vns-shake=
+
+Pseudocódigo corto:
+
+1. comenzar con la solución actual;
+2. repetir =k= veces:
+   - elegir un criterio al azar;
+   - intentar obtener un vecino válido;
+   - si se acepta:
+      - actualizar solución;
+      - registrar estadísticas;
+3. devolver la solución perturbada.
+
+Esta función representa la parte exploratoria del VNS y permite estudiar el impacto de la diversificación sobre los resultados finales.
+
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+
+(defun vrp-vns-shake
+    (&key
+       (problem a-n33-k5-problem)
+       (solution nil)
+       (criteria *vrp-vns-default-criteria*)
+       (k 1)
+       (constructor :random)
+       (max-tries 20)
+       (quiet nil))
+
+  "SHAKE mejorado:
+   - aplica hasta K perturbaciones consecutivas;
+   - primero intenta movimientos aleatorios válidos del framework;
+   - si no encuentra movimiento útil, aplica restart aleatorio controlado;
+   - reduce el bloqueo por SHAKE-INVALID;
+   - devuelve métricas experimentales compatibles con el runner."
+
+  (declare (ignore quiet))
+
+  (let* ((current
+           (or solution
+               (vrp-vns-make-initial-solution
+                problem
+                constructor)))
+
+         (applied 0)
+         (total-tries 0)
+         (invalid-steps 0)
+         (criteria-used '()))
+
+    (loop repeat k do
+
+      (multiple-value-bind
+            (neighbor tries accepted criterion)
+
+          (vrp-vns-try-random-shake-move
+           :problem problem
+           :solution current
+           :criteria criteria
+           :max-tries max-tries)
+
+        (incf total-tries tries)
+
+        (when criterion
+          (push criterion criteria-used))
+
+        (if accepted
+
+            (progn
+              (setf current neighbor)
+              (incf applied))
+
+            ;; fallback: si el vecindario no logra mover, reinicio aleatorio controlado
+            (multiple-value-bind
+                  (restart restart-tries restart-ok)
+
+                (vrp-vns-random-restart-solution
+                 :problem problem
+                 :constructor constructor
+                 :reference current
+                 :max-tries 10)
+
+              (incf total-tries restart-tries)
+
+              (if restart-ok
+                  (progn
+                    (setf current restart)
+                    (incf applied)
+                    (push 'random-restart criteria-used))
+                  (incf invalid-steps))))))
+
+    (values
+     current
+     applied
+     total-tries
+     invalid-steps
+     (reverse criteria-used))))
+
+#+END_SRC
+
+
+* VNS
+
+Esta sección contiene el ciclo principal de la metaheurística Variable Neighborhood Search (VNS).
+
+La idea general consiste en combinar dos fases:
+
+- diversificación, mediante =shake=;
+- intensificación, mediante =VND=.
+
+En cada iteración el algoritmo perturba la solución actual, la mejora localmente y decide si acepta el resultado obtenido.
+
+Flujo general:
+
+1. construir solución inicial;
+2. aplicar shake;
+3. aplicar VND;
+4. aceptar si mejora;
+5. cambiar vecindad si no mejora;
+6. repetir hasta criterio de parada.
+
+** vrp-vns-run
+
+Función principal del módulo VNS.
+
+Qué hace:
+- crea la solución inicial;
+- ejecuta el ciclo completo del algoritmo;
+- controla iteraciones y estancamiento;
+- mantiene solución actual y mejor solución global;
+- imprime trazas resumidas;
+- devuelve la mejor solución encontrada.
+
+Parámetros principales:
+
+- =problem=: instancia CVRP a resolver.
+- =criteria=: vecindades disponibles.
+- =kmax=: tamaño máximo de vecindad.
+- =max-iter=: máximo de iteraciones globales.
+- =max-no-improve=: límite sin mejora.
+- =vnd-mode=: modo de búsqueda local.
+- =shake-max-tries=: intentos máximos de shake.
+
+Idea conceptual:
+
+- =current=: solución actual.
+- =best=: mejor solución encontrada.
+- =k=: vecindad actual.
+- =no-improve=: contador sin mejora.
+
+Si una iteración mejora la solución actual:
+- se acepta;
+- se reinicia =k= a 1.
+
+Si no mejora:
+- aumenta =k=;
+- cuando llega a =kmax= vuelve a 1.
+
+** Pseudocódigo resumido de vrp-vns-run
+
+1. construir solución inicial
+2. best = current
+3. mientras no se cumpla criterio de parada:
+
+   a. shaken = shake(current, k)
+   b. local-opt = VND(shaken)
+
+   c. si mejora current:
+        current = local-opt
+
+      si además mejora best:
+        best = local-opt
+
+      reiniciar k
+
+   d. si no mejora:
+        avanzar k
+
+4. devolver best
+
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+
+(defun vrp-vns-run
+    (&key
+       (problem a-n33-k5-problem)
+       (constructor :random)
+       (criteria *vrp-vns-default-criteria*)
+       (kmax 3)
+       (max-iter 50)
+       (max-no-improve 15)
+       (vnd-mode :best)
+       (vnd-max-rounds 50)
+       (vnd-max-no-improve 10)
+       (shake-max-tries 20))
+
+  "Loop VNS completo:
+   shake -> vnd -> aceptar si mejora -> control de k e iteraciones."
+  (let* ((current (vrp-vns-make-initial-solution problem constructor))
+         (best current)
+         (initial-cost (cost current))
+         (iter 0)
+         (k 1)
+         (no-improve 0)
+         (accepted-improvements 0))
+
+    (vrp-vns-print-banner "VNS :: INICIO")
+    (format t "Initial cost: ~a~%" initial-cost)
+    (format t "Criteria: ~a~%" criteria)
+    (format t "kmax: ~a | max-iter: ~a | max-no-improve: ~a~%"
+            kmax max-iter max-no-improve)
+    (finish-output)
+
+    (loop while (and (< iter max-iter)
+                     (< no-improve max-no-improve))
+          do
+            (incf iter)
+
+            (let* ((current-k k)
+                   (shaken
+                     (vrp-vns-shake
+                      :problem problem
+                      :solution current
+                      :criteria criteria
+                      :k current-k
+                      :max-tries shake-max-tries
+                      :quiet t))
+                   (local-opt nil)
+                   (vnd-iters 0)
+                   (vnd-improvements 0)
+                   (delta-current 0)
+                   (delta-best 0))
+
+              (multiple-value-setq (local-opt vnd-iters vnd-improvements)
+                (vrp-vns-vnd
+                 :problem problem
+                 :solution shaken
+                 :criteria criteria
+                 :mode vnd-mode
+                 :max-rounds vnd-max-rounds
+                 :max-no-improve vnd-max-no-improve
+                 :quiet t))
+
+              (setf delta-current
+                    (vrp-vns-compute-real-delta current local-opt))
+              (setf delta-best
+                    (vrp-vns-compute-real-delta best local-opt))
+
+              (if (< delta-current 0)
+                  (progn
+                    (setf current local-opt)
+                    (vrp-vns-refresh-solution-cost current problem)
+                    (vrp-vns-refresh-solution-cost best problem)
+                    (incf accepted-improvements)
+                    (setf no-improve 0)
+
+                    (when (< delta-best 0)
+                      (setf best local-opt))
+
+                    (format t "~%[ACEPTADA] iter=~a | k=~a | delta-current=~a | best-cost=~a | vnd-iters=~a | vnd-improv=~a~%"
+                            iter current-k delta-current (cost best) vnd-iters vnd-improvements)
+
+                    (setf k 1)
+                    (finish-output))
+                  (progn
+                    (incf no-improve)
+                    (setf k (if (< k kmax) (1+ k) 1))
+                    (format t "~%[SIN MEJORA] iter=~a | next-k=~a | no-improve=~a~%"
+                            iter k no-improve)
+                    (finish-output)))))
+
+    (vrp-vns-print-banner "VNS :: FIN")
+    (format t "Initial cost: ~a~%" initial-cost)
+    (format t "Best final cost: ~a~%" (cost best))
+    (format t "Total iterations: ~a~%" iter)
+    (format t "Accepted improvements: ~a~%" accepted-improvements)
+    (format t "Final no-improve counter: ~a~%" no-improve)
+    (finish-output)
+
+    (vrp-vns-print-solution-summary best :label "BEST-VNS")
+    best))
+#+END_SRC
+
+
+
+* Utilidades experimentales
+
+Esta sección agrupa funciones auxiliares utilizadas exclusivamente para la ejecución experimental del VNS.
+
+Su propósito principal es registrar información estadística y métricas internas necesarias para:
+- experimentos masivos;
+- exportación de resultados;
+- comparación entre variantes;
+- análisis estadístico posterior en Python.
+
+Estas funciones no modifican directamente el comportamiento del algoritmo, 
+pero permiten transformar el VNS en una plataforma experimental reproducible y adecuada para investigación científica.
+
+La información recopilada incluye:
+- tiempos de ejecución;
+- evolución del costo;
+- trazas por iteración;
+- intensidad de shake;
+- comportamiento del VND;
+- cálculo de GAP;
+- métricas internas del algoritmo.
+
+Funciones incluidas:
+
+- =vns-current-time=
+  Obtiene el tiempo actual del sistema.
+
+- =vns-elapsed-time=
+  Calcula el tiempo transcurrido desde un instante inicial.
+
+- =vns-compute-gap=
+  Calcula el GAP respecto a una solución de referencia.
+
+- =vns-make-trace-row=
+  Construye una fila estructurada de trazas experimentales.
+
+Estas funciones son importantes porque permiten registrar el comportamiento completo del algoritmo durante los experimentos.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+
+(defun vns-current-time ()
+  (/ (get-internal-real-time)
+     internal-time-units-per-second))
+
+(defun vns-elapsed-time (start)
+  (- (vns-current-time) start))
+
+(defun vns-compute-gap (best optimum)
+  (if (and optimum (> optimum 0))
+      (* 100.0
+         (/ (- best optimum)
+            optimum))
+      0))
+
+(defun vns-make-trace-row
+    (&key
+       iter
+       k
+       current-cost
+       best-cost
+       delta
+       shake-applied
+       shake-tries
+       shake-invalid
+       vnd-rounds
+       vnd-improvements
+       neighbors-evaluated
+       accepted
+       elapsed-time)
+
+  "Construye una fila de traza para VNS.
+
+   VNS no genera cadenas IVNS, por eso las columnas relacionadas con
+   cadenas se completan con valores neutros."
+  (list
+   :iter iter
+   :k k
+
+   :current-cost current-cost
+   :best-cost best-cost
+   :delta delta
+
+   :accepted accepted
+
+   :shake-applied shake-applied
+   :shake-tries shake-tries
+   :shake-invalid shake-invalid
+
+   :vnd-rounds vnd-rounds
+   :vnd-improvements vnd-improvements
+
+   :neighbors-evaluated neighbors-evaluated
+
+   :ivns-string ""
+   :ivns-string-length 0
+   :ivns-complexity-score 0
+   :ivns-generation-tries 0
+
+   :ivns-strings-generated-iter 0
+   :ivns-strings-valid-iter 0
+   :ivns-strings-invalid-iter 0
+   :ivns-strings-evaluated-iter 0
+   :ivns-strings-selected-iter 0
+   :ivns-strings-accepted-iter 0
+   :ivns-unique-strings-iter 0
+   :ivns-filter-reject-reason ""
+
+   :elapsed-time elapsed-time
+   :elapsed-time-seconds elapsed-time
+
+   :status "ok"
+   :error ""))
+#+END_SRC
+
+
+* VNS experimental
+
+Esta sección implementa una versión experimental y trazable del algoritmo VNS.
+
+A diferencia de la ejecución estándar del VNS, esta implementación no solo busca encontrar buenas soluciones, 
+sino también recopilar información detallada sobre el comportamiento interno del algoritmo durante los experimentos.
+
+El objetivo principal de esta versión es permitir:
+
+- ejecución masiva de experimentos;
+- comparación entre variantes;
+- exportación de resultados;
+- análisis estadístico posterior;
+- validación científica del comportamiento del algoritmo.
+
+La función registra información relevante de cada iteración, incluyendo:
+
+- costo actual;
+- mejor costo encontrado;
+- delta de mejora;
+- cantidad de mejoras aceptadas;
+- comportamiento del shake;
+- comportamiento del VND;
+- tiempo de ejecución;
+- GAP respecto a una solución de referencia.
+
+Toda esta información es almacenada en estructuras que posteriormente pueden exportarse a CSV o procesarse en Python para realizar pruebas estadísticas.
+
+** vns-run-experimental
+
+Ejecuta el algoritmo VNS en modo experimental.
+
+Qué hace:
+- construye una solución inicial;
+- ejecuta el ciclo completo VNS;
+- registra trazas por iteración;
+- recopila métricas internas;
+- calcula tiempos y GAP;
+- devuelve un resumen completo del experimento.
+
+Para qué sirve:
+- realizar experimentos reproducibles;
+- comparar configuraciones del algoritmo;
+- generar datos para análisis estadístico;
+- evaluar científicamente el desempeño del VNS.
+
+** Idea general de =vns-run-experimental=
+
+Pseudocódigo corto:
+
+1. construir solución inicial;
+2. iniciar métricas experimentales;
+3. mientras no se alcance el criterio de parada:
+
+   a. aplicar shake;
+   b. aplicar VND;
+   c. calcular delta;
+   d. aceptar o rechazar;
+   e. registrar métricas de iteración;
+
+4. calcular métricas finales;
+5. devolver resultados completos del experimento.
+
+Esta función representa la versión principal utilizada para experimentación científica y evaluación estadística del VNS.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+(defun vns-run-experimental
+    (&key
+       (problem a-n33-k5-problem)
+       (constructor :random)
+       (initial-solution nil)
+       (criteria *vrp-vns-default-criteria*)
+       (kmax 3)
+       (max-iter 50)
+       (max-no-improve 15)
+       (vnd-mode :best)
+       (vnd-max-rounds 50)
+       (vnd-max-no-improve 10)
+       (shake-max-tries 20)
+       (known-best nil)
+       (seed 1)
+       (time-limit-seconds nil))
+
+  "Ejecuta VNS en modo experimental.
+
+   Si INITIAL-SOLUTION no es NIL, VNS parte de una copia de esa solución.
+   Esto permite comparar VNS e IVNS desde la misma solución inicial."
+  (when (fboundp 'initialize-seed)
+    (setf *random-state*
+          (make-random-state t))
+
+    (loop repeat seed do
+          (random 1.0)))
+
+  (let* ((start-time
+          (vns-current-time))
+
+         (current
+          (if initial-solution
+              (clone initial-solution)
+              (vrp-vns-make-initial-solution
+               problem
+               constructor)))
+
+         (best
+          (clone current))
+
+         (initial-cost
+          (cost current))
+
+         (best-cost
+          (cost current))
+
+         (iter 0)
+         (k 1)
+         (no-improve 0)
+         (accepted-improvements 0)
+         (trace '())
+         (stop-by-time nil))
+
+    (vrp-vns-print-banner "VNS EXPERIMENTAL")
+
+    (loop while
+          (and (< iter max-iter)
+               (< no-improve max-no-improve)
+               (or (null time-limit-seconds)
+                   (< (vns-elapsed-time start-time)
+                      time-limit-seconds)))
+          do
+            (incf iter)
+
+            (let ((accepted-this-iteration nil))
+
+              (multiple-value-bind
+                    (shaken
+                     shake-applied
+                     shake-tries
+                     shake-invalid
+                     shake-criteria)
+
+                  (vrp-vns-shake
+                   :problem problem
+                   :solution current
+                   :criteria criteria
+                   :k k
+                   :constructor constructor
+                   :max-tries shake-max-tries
+                   :quiet t)
+
+                (declare (ignore shake-criteria))
+
+                (multiple-value-bind
+                      (local-opt
+                       vnd-rounds
+                       vnd-improvements
+                       neighbors-evaluated
+                       accepted-moves
+                       criteria-used)
+
+                    (vrp-vns-vnd
+                     :problem problem
+                     :solution shaken
+                     :criteria criteria
+                     :mode vnd-mode
+                     :max-rounds vnd-max-rounds
+                     :max-no-improve vnd-max-no-improve
+                     :quiet t)
+
+                  (declare (ignore accepted-moves
+                                   criteria-used))
+
+                  (let ((delta
+                         (vrp-vns-compute-real-delta
+                          current
+                          local-opt)))
+
+                    (if (and local-opt
+                             (vrp-vns-valid-neighbor-p current local-opt)
+                             (< delta 0))
+
+                        (progn
+                          (setf accepted-this-iteration t)
+                          (setf current local-opt)
+
+                          (when (< (cost current)
+                                   (cost best))
+                            (setf best
+                                  (clone current))
+                            (setf best-cost
+                                  (cost current)))
+
+                          (incf accepted-improvements)
+                          (setf no-improve 0)
+                          (setf k 1))
+
+                        (progn
+                          (incf no-improve)
+                          (setf k
+                                (if (< k kmax)
+                                    (1+ k)
+                                    1))))
+
+                    (push
+                     (vns-make-trace-row
+                      :iter iter
+                      :k k
+                      :current-cost (cost current)
+                      :best-cost best-cost
+                      :delta delta
+                      :shake-applied shake-applied
+                      :shake-tries shake-tries
+                      :shake-invalid shake-invalid
+                      :vnd-rounds vnd-rounds
+                      :vnd-improvements vnd-improvements
+                      :neighbors-evaluated neighbors-evaluated
+                      :accepted accepted-this-iteration
+                      :elapsed-time (vns-elapsed-time start-time))
+                     trace)
+
+                    (format t
+                            "~%[ITER ~a] cost=~a | best=~a | delta=~a | k=~a | accepted=~a~%"
+                            iter
+                            (cost current)
+                            best-cost
+                            delta
+                            k
+                            accepted-this-iteration)
+
+                    (finish-output))))))
+
+    (when (and time-limit-seconds
+               (>= (vns-elapsed-time start-time)
+                   time-limit-seconds))
+      (setf stop-by-time t))
+
+    (let ((total-time
+           (vns-elapsed-time start-time))
+
+          (gap
+           (vns-compute-gap
+            best-cost
+            known-best)))
+
+      (vrp-vns-print-banner "VNS FINAL")
+
+      (format t "~%Best cost: ~a~%" best-cost)
+      (format t "Iterations: ~a~%" iter)
+      (format t "Accepted improvements: ~a~%"
+              accepted-improvements)
+      (format t "Time: ~,4f sec~%" total-time)
+      (format t "Gap: ~,4f~%" gap)
+
+      (list
+       :algorithm :vns
+       :problem problem
+       :seed seed
+       :max-iter max-iter
+       :kmax kmax
+       :max-no-improve max-no-improve
+       :shake-max-tries shake-max-tries
+       :vnd-mode vnd-mode
+       :vnd-max-rounds vnd-max-rounds
+       :vnd-max-no-improve vnd-max-no-improve
+       :time-limit-seconds time-limit-seconds
+       :stop-by-time stop-by-time
+       :initial-cost initial-cost
+       :best-cost best-cost
+       :iterations iter
+       :accepted-improvements accepted-improvements
+       :time total-time
+       :gap gap
+       :trace (reverse trace)
+       :best-solution best))))
+#+END_SRC
+
+
+** Runners de generación de vecinos
+
+- =vrp-vns-test-rab=: genera vecinos usando criterio =rab=.
+- =vrp-vns-test-rarb=: genera vecinos usando criterio =rarb=.
+- =vrp-vns-test-rarac=: genera vecinos usando criterio =rarac=.
+
+Uso:
+Permiten observar qué soluciones produce cada criterio.
+
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp   
+(defun vrp-vns-test-rab (&key (problem a-n33-k5-problem)
+                              (max-neighbors 5)
+                              (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'rab
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-test-rarb (&key (problem a-n33-k5-problem)
+                               (max-neighbors 5)
+                               (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'rarb
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-test-rarac (&key (problem a-n33-k5-problem)
+                                (max-neighbors 5)
+                                (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'rarac
+   :max-neighbors max-neighbors
+   :constructor constructor))
+#+END_SRC
+
+** Runners de selección de vecinos
+
+Modo mejor mejora:
+
+- =vrp-vns-best-rab=
+- =vrp-vns-best-rarb=
+- =vrp-vns-best-rarac=
+
+Modo primera mejora:
+
+- =vrp-vns-first-rab=
+- =vrp-vns-first-rarb=
+- =vrp-vns-first-rarac=
+
+Uso:
+Sirven para comparar estrategias de selección sobre cada criterio.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+(defun vrp-vns-best-rab (&key (problem a-n33-k5-problem)
+                              (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rab
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-first-rab (&key (problem a-n33-k5-problem)
+                               (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rab
+   :mode :first
+   :constructor constructor))
+
+(defun vrp-vns-best-rarb (&key (problem a-n33-k5-problem)
+                               (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rarb
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-first-rarb (&key (problem a-n33-k5-problem)
+                                (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rarb
+   :mode :first
+   :constructor constructor))
+
+(defun vrp-vns-best-rarac (&key (problem a-n33-k5-problem)
+                                (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rarac
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-first-rarac (&key (problem a-n33-k5-problem)
+                                 (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rarac
+   :mode :first
+   :constructor constructor))
+#+END_SRC
+
+** Runners de validación
+
+- =vrp-vns-validate-best-rab=
+- =vrp-vns-validate-best-rarb=
+- =vrp-vns-validate-best-rarac=
+
+Qué hacen:
+Comprueban si el delta reportado coincide con el costo real.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+
+(defun vrp-vns-validate-best-rab (&key (problem a-n33-k5-problem)
+                                       (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'rab
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-rarb (&key (problem a-n33-k5-problem)
+                                        (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'rarb
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-rarac (&key (problem a-n33-k5-problem)
+                                         (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'rarac
+   :mode :best
+   :constructor constructor))   
+
+(defun vrp-vns-run-vnd (&key (problem a-n33-k5-problem)
+                             (constructor :random)
+                             (criteria *vrp-vns-default-criteria*)
+                             (mode :best)
+                             (max-rounds 200)
+                             (max-no-improve 20))
+  (vrp-vns-vnd
+   :problem problem
+   :constructor constructor
+   :criteria criteria
+   :mode mode
+   :max-rounds max-rounds
+   :max-no-improve max-no-improve))
+
+(defun vrp-vns-run-shake (&key (problem a-n33-k5-problem)
+                               (constructor :random)
+                               (criteria *vrp-vns-default-criteria*)
+                               (k 2)
+                               (max-tries 20))
+  (vrp-vns-shake
+   :problem problem
+   :constructor constructor
+   :criteria criteria
+   :k k
+   :max-tries max-tries))
+
+(defun vrp-vns-run-full (&key (problem a-n33-k5-problem)
+                              (constructor :random)
+                              (criteria *vrp-vns-default-criteria*)
+                              (kmax 3)
+                              (max-iter 50)
+                              (max-no-improve 15)
+                              (vnd-mode :best)
+                              (vnd-max-rounds 50)
+                              (vnd-max-no-improve 10)
+                              (shake-max-tries 20))
+  (vrp-vns-run
+   :problem problem
+   :constructor constructor
+   :criteria criteria
+   :kmax kmax
+   :max-iter max-iter
+   :max-no-improve max-no-improve
+   :vnd-mode vnd-mode
+   :vnd-max-rounds vnd-max-rounds
+   :vnd-max-no-improve vnd-max-no-improve
+   :shake-max-tries shake-max-tries))
+#+END_SRC
+
+
+* Runners y funciones de prueba
+
+Esta sección contiene funciones auxiliares de ejecución rápida utilizadas
+para depuración, validación y pruebas experimentales.
+
+Los runners permiten ejecutar partes específicas del sistema sin necesidad
+de lanzar el algoritmo completo.
+
+Se incluyen runners para:
+
+- generación de vecinos;
+- selección de vecinos;
+- validación de delta-cost;
+- ejecución de VND;
+- ejecución de SHAKE;
+- ejecución completa del VNS.
+
+Estas funciones son especialmente útiles durante el desarrollo del sistema,
+la validación de vecindades y la construcción de experimentos controlados.
+
+** Vecindades implementadas
+
+- =rffe=
+  Intercambia dos subrutas dentro de una misma ruta.
+
+- =rarbac=
+  Reubica un cliente desde una ruta hacia otra.
+
+- =rbrbff=
+  Intercambia subrutas entre rutas distintas.
+
+- =r2opt=
+  Aproximación declarativa de 2-opt intra-ruta.
+
+- =r2optx=
+  Aproximación declarativa de 2-opt entre rutas.
+
+- =roropt=
+  Reinserta una subruta dentro de la misma ruta.
+
+- =rchain=
+  Mueve una subruta desde una ruta hacia otra.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-vns.lisp
+
+;;; ============================================================
+;;; RUNNERS :: RFFE
+;;; ============================================================
+
+(defun vrp-vns-test-rffe (&key (problem a-n33-k5-problem)
+                               (max-neighbors 5)
+                               (constructor :random))
+  "Prueba la vecindad rffe: swap de dos subrutas dentro de una ruta."
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'rffe
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-best-rffe (&key (problem a-n33-k5-problem)
+                               (constructor :random))
+  "Busca la mejor mejora usando rffe."
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rffe
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-rffe (&key (problem a-n33-k5-problem)
+                                        (constructor :random))
+  "Valida delta-cost para rffe."
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'rffe
+   :mode :best
+   :constructor constructor))
+
+;;; ============================================================
+;;; RUNNERS :: RARBAC
+;;; ============================================================
+
+(defun vrp-vns-test-rarbac (&key (problem a-n33-k5-problem)
+                                 (max-neighbors 5)
+                                 (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'rarbac
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-best-rarbac (&key (problem a-n33-k5-problem)
+                                 (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rarbac
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-rarbac
+       (&key (problem a-n33-k5-problem)
+             (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'rarbac
+   :mode :best
+   :constructor constructor))
+
+;;; ============================================================
+;;; RUNNERS :: RBRBFF
+;;; ============================================================
+
+(defun vrp-vns-test-rbrbff (&key (problem a-n33-k5-problem)
+                                 (max-neighbors 5)
+                                 (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'rbrbff
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-best-rbrbff (&key (problem a-n33-k5-problem)
+                                 (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rbrbff
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-rbrbff
+       (&key (problem a-n33-k5-problem)
+             (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'rbrbff
+   :mode :best
+   :constructor constructor))
+
+
+;;; ============================================================
+;;; RUNNERS :: R2OPT
+;;; ============================================================
+
+(defun vrp-vns-test-r2opt (&key (problem a-n33-k5-problem)
+                                (max-neighbors 5)
+                                (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'r2opt
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-best-r2opt (&key (problem a-n33-k5-problem)
+                                (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'r2opt
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-r2opt
+       (&key (problem a-n33-k5-problem)
+             (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'r2opt
+   :mode :best
+   :constructor constructor))
+
+;;; ============================================================
+;;; RUNNERS :: R2OPTX
+;;; ============================================================
+
+(defun vrp-vns-test-r2optx (&key (problem a-n33-k5-problem)
+                                 (max-neighbors 5)
+                                 (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'r2optx
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-best-r2optx (&key (problem a-n33-k5-problem)
+                                 (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'r2optx
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-r2optx
+       (&key (problem a-n33-k5-problem)
+             (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'r2optx
+   :mode :best
+   :constructor constructor))
+
+;;; ============================================================
+;;; RUNNERS :: ROROPT
+;;; ============================================================
+
+(defun vrp-vns-test-roropt (&key (problem a-n33-k5-problem)
+                                 (max-neighbors 5)
+                                 (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'roropt
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-best-roropt (&key (problem a-n33-k5-problem)
+                                 (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'roropt
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-roropt
+       (&key (problem a-n33-k5-problem)
+             (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'roropt
+   :mode :best
+   :constructor constructor))
+
+;;; ============================================================
+;;; RUNNERS :: RCHAIN
+;;; ============================================================
+
+(defun vrp-vns-test-rchain (&key (problem a-n33-k5-problem)
+                                 (max-neighbors 5)
+                                 (constructor :random))
+  (vrp-vns-generate-neighbors
+   :problem problem
+   :criterion-symbol 'rchain
+   :max-neighbors max-neighbors
+   :constructor constructor))
+
+(defun vrp-vns-best-rchain (&key (problem a-n33-k5-problem)
+                                 (constructor :random))
+  (vrp-vns-select-neighbor
+   :problem problem
+   :criterion-symbol 'rchain
+   :mode :best
+   :constructor constructor))
+
+(defun vrp-vns-validate-best-rchain
+       (&key (problem a-n33-k5-problem)
+             (constructor :random))
+  (vrp-vns-validate-delta
+   :problem problem
+   :criterion-symbol 'rchain
+   :mode :best
+   :constructor constructor))
+
+#+END_SRC
+
+
+
+
+* Cómo ejecutar
+
+Esta sección resume cómo generar, cargar y probar el módulo VNS.
+Todos los comandos se ejecutan desde la raíz del proyecto.
+
+
+** Tanglear el archivo
+
+El código fuente de VNS se genera a partir del archivo Org mediante
+=org-babel-tangle=:
+
+mkdir -p logs results
+
+emacs --batch vrp-suite/vrp-vns.org -f org-babel-tangle 
+2>&1 | tee logs/tangle-vrp-vns.log
+
+
+** Cargar el módulo VNS
+
+Para comprobar que el módulo VNS carga correctamente junto con el sistema base:
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(format t "~%LOAD-OK-VNS~%")' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/load-vns.log
+
+
+
+** Ejecutar una prueba corta de VNS
+
+La siguiente corrida ejecuta VNS sobre la instancia =A-n33-k5= con una semilla
+y pocas iteraciones. Sirve como prueba rápida de funcionamiento.
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :vrp-experiments)' 
+--eval '(run-single-vns-experiment
+:problem vrp::a-n33-k5-problem
+:seed 1
+:max-iter 5
+:kmax 2
+:max-no-improve 4
+:shake-max-tries 5
+:vnd-mode :best
+:vnd-max-rounds 3
+:vnd-max-no-improve 2
+:known-best 661)' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/smoke-vns-a-n33-k5.log
+
+Durante la ejecución deben aparecer iteraciones similares a:
+
+[ITER 1] cost=...
+[ITER 2] cost=...
+...
+VNS FINAL
+
+** Ejecutar VNS con salida CSV
+
+Para guardar resultados en archivos CSV se recomienda usar la infraestructura
+experimental:
+
+rm -f results/summary-vns-smoke.csv
+rm -f results/trace-vns-smoke.csv
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :vrp-experiments)' 
+--eval '(run-thesis-experiments
+:algorithms (list :vns)
+:instances (list vrp::a-n33-k5-problem)
+:seeds (list 1 2)
+:shared-initial-solution-p nil
+:max-iter 5
+:kmax 2
+:max-no-improve 4
+:shake-max-tries 5
+:generation-max-tries 0
+:ivns-max-neighborhood-seconds 0.0
+:vnd-mode :best
+:vnd-max-rounds 3
+:vnd-max-no-improve 2
+:time-limit-seconds 30
+:summary-file "results/summary-vns-smoke.csv"
+:trace-file "results/trace-vns-smoke.csv")' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/run-vns-smoke-csv.log
+
+** Validar los CSV de VNS
+
+python3 - <<'PY'
+import csv
+from pathlib import Path
+from collections import Counter
+
+summary = Path("results/summary-vns-smoke.csv")
+trace = Path("results/trace-vns-smoke.csv")
+
+rows = list(csv.DictReader(summary.open(newline="", encoding="utf-8"))) if summary.exists() else []
+trace_rows = list(csv.DictReader(trace.open(newline="", encoding="utf-8"))) if trace.exists() else []
+
+print("summary existe:", summary.exists())
+print("trace existe:", trace.exists())
+print("summary rows:", len(rows))
+print("trace rows:", len(trace_rows))
+print("algorithms:", Counter(r.get("algorithm","") for r in rows))
+print("status:", Counter(r.get("status","") for r in rows))
+print("feasible:", Counter(r.get("feasible","") for r in rows))
+
+problems = []
+
+if len(rows) != 2:
+problems.append(("filas esperadas", 2, "encontradas", len(rows)))
+
+if any(r.get("algorithm") != "vns" for r in rows):
+problems.append("hay filas que no son VNS")
+
+if any(r.get("status") != "ok" for r in rows):
+problems.append("hay status distinto de ok")
+
+if any(r.get("feasible","").lower() != "true" for r in rows):
+problems.append("hay soluciones no factibles")
+
+print("problemas:", problems if problems else "OK")
+print("VALIDACION_VNS:", "OK" if not problems else "REVISAR")
+PY
+
+La validación esperada es:
+
+VALIDACION_VNS: OK
+
+** Pruebas útiles para desarrollo
+
+Prueba corta:
+
+(vns-run-experimental
+:problem a-n33-k5-problem
+:seed 1
+:max-iter 5
+:kmax 2
+:known-best 661)
+
+Prueba media:
+
+(vns-run-experimental
+:problem a-n33-k5-problem
+:seed 1
+:max-iter 20
+:kmax 3
+:known-best 661)
+
+Prueba sobre una instancia mayor:
+
+(vns-run-experimental
+:problem a-n65-k9-problem
+:seed 1
+:max-iter 20
+:kmax 3
+:known-best 1174)
+
+** Resultado esperado
+
+El módulo se considera correctamente preparado si:
+
+1. el archivo tangletea sin errores;
+2. SBCL muestra =LOAD-OK-VNS=;
+3. la prueba corta imprime iteraciones;
+4. los CSV se crean correctamente;
+5. la validación muestra =VALIDACION_VNS: OK=.

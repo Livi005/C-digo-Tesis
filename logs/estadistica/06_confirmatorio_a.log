@@ -1,0 +1,5 @@
+/usr/lib/python3/dist-packages/scipy/stats/_morestats.py:4088: UserWarning: Exact p-value calculation does not work if there are zeros. Switching to normal approximation.
+  warnings.warn("Exact p-value calculation does not work if there are "
+Pares confirmatorios A = 90
+Tablas guardadas en /home/olivia3/Proyectos Uni/vrp/results/analysis_final/tables
+Figuras guardadas en /home/olivia3/Proyectos Uni/vrp/results/analysis_final/figures/confirmatory_a

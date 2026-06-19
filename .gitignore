@@ -1,0 +1,7 @@
+vrp-py-babel-tangle
+*.lisp
+*.el
+*.sh
+src/*
+data/*__pycache__/
+*.pyc

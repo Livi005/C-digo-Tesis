@@ -1,0 +1,2 @@
+rank,configuration,ivns_profile,vnd_mode,ivns_time,runs,gap_mean,gap_std,gap_median,gap_q1,gap_q3,gap_min,gap_max,time_mean,time_median
+1,efg-high-first-t1.50,efg-high,first,1.5,5,443.9586916,18.135440295028012,440.963837,432.185883,459.036163,422.117035,465.49054,14.1994526,14.074052

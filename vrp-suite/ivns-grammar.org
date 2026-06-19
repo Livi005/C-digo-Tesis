@@ -1,0 +1,2889 @@
+#+TITLE: ivns-grammar
+#+AUTHOR: Olivia Ibañez Mustelier
+
+* Descripción
+
+Este archivo reúne en un solo lugar el código de la gramática usada para IVNS.
+
+Se agrupan cuatro partes:
+
+1. definición del paquete IVNS;
+2. generación de cadenas válidas según la gramática;
+3. verificación y desambiguación de la cadena generada;
+4. traducción de acciones IVNS a criterio ejecutable del VRP.
+
+La idea general es:
+
+- generar una cadena válida;
+- verificar si hay ambigüedad estructural;
+- convertir la cadena en una lista de acciones simbólicas;
+- dejar esa información lista para conectarla con el VNS y el VRP;
+- ejecutar ese criterio sobre una solución real del VRP.
+
+* Mapa de símbolos del lenguaje IVNS
+
+La gramática de IVNS genera cadenas formadas por símbolos simples. Cada
+símbolo representa una operación básica sobre una solución del CVRP.
+
+El significado usado en este proyecto es:
+
+| Símbolo | Significado conceptual | Acción sobre la solución |
+|---------+------------------------+--------------------------|
+| =r=     | seleccionar ruta       | elige una ruta del conjunto de rutas |
+| =a=     | seleccionar cliente    | elige un cliente de una ruta |
+| =b=     | insertar cliente       | inserta un cliente previamente seleccionado |
+| =c=     | intercambiar clientes  | intercambia dos clientes seleccionados |
+| =f=     | seleccionar subruta    | elige una secuencia de clientes dentro de una ruta |
+| =g=     | insertar subruta       | inserta una subruta previamente seleccionada |
+| =e=     | intercambiar subrutas  | intercambia dos subrutas seleccionadas |
+
+Por ejemplo, una cadena como =rab= puede interpretarse como:
+
+1. seleccionar una ruta;
+2. seleccionar un cliente de esa ruta;
+3. insertar ese cliente en una ruta.
+
+Una cadena como =rffe= puede interpretarse como:
+
+1. seleccionar una ruta;
+2. seleccionar dos subrutas;
+3. intercambiar esas subrutas.
+
+Este mapa permite entender que IVNS no genera movimientos manualmente,
+sino secuencias de acciones que después se traducen a criterios de vecindad
+del framework VRP.
+
+* Archivo: ivns-package.lisp
+
+Esta sección define el paquete =ivns=.
+
+El archivo generado es:
+
+- =../src/ivns-package.lisp=
+
+Su objetivo es declarar qué funciones y variables del módulo IVNS pueden
+ser usadas desde otros archivos.
+
+El paquete agrupa funciones relacionadas con:
+
+- configuración del generador;
+- generación de cadenas;
+- validación de cadenas;
+- interpretación de cadenas;
+- cálculo de métricas;
+- pruebas rápidas del módulo.
+
+** Funciones exportadas principales
+
+- =filter-string=:
+  genera una cadena IVNS final, ya filtrada y lista para interpretarse.
+- =apply-subindices=:
+  interpreta una cadena IVNS y produce acciones anotadas.
+- =initialize-random-seed=:
+  inicializa el estado aleatorio del generador.
+- =clear-generated-strings=:
+  limpia el historial de cadenas generadas.
+- =test-generator=:
+  ejecuta una prueba simple del generador.
+- =main=:
+  ejecuta el flujo mínimo de generación e interpretación.
+- =ivns-complexity-score=:
+  calcula una medida simple de complejidad de una cadena.
+- =ivns-string-valid-p=:
+  aplica todos los filtros de validez sobre una cadena.
+- =check-ambiguity=:
+  conserva el nombre histórico de la validación estructural.
+
+* Archivo: ivns-package.lisp
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-package.lisp
+(defpackage :ivns
+  (:use :cl)
+  (:export
+   filter-string
+   filter-string-with-diagnostics
+   apply-subindices
+   initialize-random-seed
+   clear-generated-strings
+   test-generator
+   main
+   get-config
+   *ivns-config*))
+
+(in-package :ivns)
+
+(defparameter *ivns-config* nil
+  "Configuración global del generador IVNS.")
+
+(defparameter *r-limit* 2
+  "Máximo base de símbolos 'r' permitidos en una cadena IVNS.")
+
+(defun get-config (key &optional default)
+  (getf *ivns-config* key default))
+
+
+(defun cadena-balanceada-p
+       (cadena
+        &key
+          (limite-desequilibrio
+           (get-config :max-imbalance 2)))
+
+  "Verifica que CADENA no esté dominada excesivamente por un símbolo.
+
+   Esta función se carga temprano porque es usada por los validadores
+   de cadenas IVNS. No exige que todos los símbolos aparezcan; solo evita
+   cadenas demasiado desbalanceadas en frecuencia."
+
+  (if (or (null cadena)
+          (not (stringp cadena))
+          (= (length cadena) 0))
+
+      nil
+
+      (let* ((symbols
+              '(#\r #\a #\b #\c #\e #\f #\g))
+
+             (counts
+              (remove
+               0
+               (mapcar
+                (lambda (s)
+                  (count s cadena))
+                symbols))))
+
+        (if (null counts)
+
+            nil
+
+            (<= (- (apply #'max counts)
+                   (apply #'min counts))
+                limite-desequilibrio)))))
+#+END_SRC
+
+* Archivo: ivns-string-generator.lisp
+
+Esta sección contiene la gramática y el generador de cadenas IVNS.
+
+El archivo generado es:
+
+- =../src/ivns-string-generator.lisp=
+
+La responsabilidad de esta parte es producir cadenas candidatas que
+representen posibles criterios de vecindad.
+
+La gramática define qué combinaciones de símbolos están permitidas. Sin
+embargo, no toda cadena generada es conveniente para ejecutar un
+experimento. Algunas cadenas pueden ser demasiado largas, repetitivas,
+costosas o poco útiles.
+
+Por eso esta sección incluye también filtros para controlar:
+
+- longitud máxima;
+- cantidad máxima de rutas seleccionadas;
+- balance entre símbolos de selección e inserción;
+- complejidad estimada;
+- patrones que suelen producir vecindarios demasiado costosos;
+- duplicados.
+
+La salida esperada de esta sección es una cadena IVNS válida, simple y
+ejecutable.
+
+** Variables principales
+
+- =p-productions=: gramática completa; define qué puede producir cada símbolo no terminal.
+- =terminals=: terminales del lenguaje; son los símbolos finales que aparecerán en la cadena.
+- =non-terminals=: símbolos auxiliares que se expanden usando la gramática.
+- =generated-strings=: historial de cadenas ya producidas; se usa para evitar repetir resultados.
+- =current-index=: contador auxiliar para anotar terminales indexados.
+- =*r-limit*= límite del número de =r= permitidas en una cadena.
+- =*r-count*= contador temporal de cuántas =r= han salido en el intento actual.
+
+** Qué representa la gramática
+
+La variable =p-productions= es el núcleo formal del módulo. 
+En ella se define el lenguaje de criterios que el IVNS puede generar. 
+Cada producción indica qué combinaciones de símbolos están permitidas y, 
+por tanto, qué patrones de acciones podrán existir después en la interpretación.
+
+** Funciones auxiliares pequeñas
+
+Las funciones pequeñas de esta sección cumplen tareas muy concretas y reutilizables:
+
+- =get-productions=: devuelve las producciones asociadas a un símbolo.
+- =terminal-p=: decide si un símbolo ya es terminal y no debe seguir expandiéndose.
+- =non-terminal-p=: decide si un símbolo todavía debe expandirse.
+- =string-seen-p=: verifica si una cadena ya había sido generada.
+- =add-string=: guarda una cadena nueva en el historial.
+- =generate-indexed-terminal=: crea una variante indexada de un terminal.
+- =choose-random=: selecciona un elemento aleatorio de una lista.
+- =flatten-list=: aplana listas anidadas para dejar la salida en forma simple.
+
+Estas funciones existen para que el generador principal se mantenga legible. 
+En lugar de concentrar toda la lógica en un único bloque largo, el código separa tareas pequeñas y bien definidas.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-string-generator.lisp
+(in-package :ivns)
+
+(defparameter p-productions
+  '((S ((R A S1 B) (R A S1 R B) (R A A S1 C) (R A R A S1 C) (R F S1 G) (R F S1 R G) (R F F S1 E) (R F R F S1 E)))
+    (S1 ((R1 A S1 R1 B) (R1 A R1 A S1 C) (R1 F S1 R G) (R1 F R1 F S1 E) (epsilon)))
+    (R1 ((R) (epsilon)))
+    (R (("r")))
+    (A (("a")))
+    (B (("b")))
+    (C (("c")))
+    (F (("f")))
+    (G (("g")))
+    (E (("e")))))
+
+(defparameter terminals '("r" "a" "b" "c" "f" "g" "e")
+  "Lista de todos los símbolos terminales de la gramática.")
+
+(defparameter non-terminals '(S S1 R1 R A B C F G E)
+  "Lista de todos los símbolos no terminales definidos en la gramática.")
+
+(defparameter generated-strings nil
+  "Almacena cadenas ya generadas para evitar duplicados.")
+
+(defparameter current-index 1
+  "Contador para generar nombres únicos en terminales indexados.")
+
+;; -----------------------------
+;; Restricción: máximo de 'r'
+;; -----------------------------
+;; *r-limit* se define en ivns-package.lisp porque también lo usan
+;; los validadores de cadenas.
+
+(defvar *r-count* 0
+  "Contador de cuántas 'r' han salido en el intento actual.")
+
+(define-condition r-limit-exceeded (error) ())
+
+(defun get-productions (symbol &key (p-productions p-productions))
+  "Retorna producciones asociadas a SYMBOL desde P-PRODUCTIONS."
+  (second (assoc symbol p-productions)))
+
+(defun terminal-p (symbol &key (terminals terminals))
+  "Determina si SYMBOL es terminal."
+  (or (stringp symbol)
+      (member symbol terminals :test #'string=)))
+
+(defun non-terminal-p (symbol &key (non-terminals non-terminals))
+  "Determina si SYMBOL es no terminal."
+  (member symbol non-terminals))
+
+(defun string-seen-p
+       (string)
+
+  "Comprueba si STRING ya fue generada anteriormente.
+
+   Se consulta directamente la variable global GENERATED-STRINGS.
+   No se usa un parámetro con el mismo nombre porque GENERATED-STRINGS
+   es especial por DEFparameter y una vinculación local puede ocultar
+   cambios sobre el historial real."
+
+  (member string
+          generated-strings
+          :test #'equal))
+
+(defun add-string
+       (string)
+
+  "Añade STRING al historial global de cadenas generadas.
+
+   La cadena se añade solo si no estaba registrada previamente.
+   Devuelve la misma cadena para permitir usar esta función en flujos
+   de generación y filtrado."
+
+  (unless (string-seen-p string)
+    (push string
+          generated-strings))
+
+  string)
+
+(defun generate-indexed-terminal (base-terminal &key (current-index current-index))
+  "Genera terminal con índice numérico a partir de BASE-TERMINAL."
+  (format nil "~a_~d" (subseq base-terminal 0 (- (length base-terminal) 2)) current-index))
+
+(defun choose-random (list)
+  "Selecciona aleatoriamente un elemento de LIST."
+  (nth (random (length list)) list))
+
+
+(defun ivns-symbol-count-in-production (symbol production)
+  "Cuenta cuántas veces aparece SYMBOL dentro de una producción."
+  (count symbol production :test #'eq))
+
+
+(defun ivns-production-efg-score (production)
+  "Mide cuánto favorece una producción a las operaciones de subrutas.
+
+   F: selección de subruta
+   G: inserción de subruta
+   E: intercambio de subrutas
+
+   Se da más peso a E porque suele representar una operación más fuerte."
+  (+ (ivns-symbol-count-in-production 'F production)
+     (ivns-symbol-count-in-production 'G production)
+     (* 2
+        (ivns-symbol-count-in-production 'E production))))
+
+
+(defun ivns-production-weight (symbol production)
+  "Calcula el peso de una producción durante la generación.
+
+   Si :prefer-efg-productions está activo, las producciones con F/G/E
+   tienen mayor probabilidad de ser seleccionadas.
+
+   Si :prefer-long-productions está activo, las producciones más largas
+   también reciben un pequeño refuerzo."
+  (let ((weight 1))
+
+    ;; Favorecer producciones con f/g/e.
+    (when (and (member symbol '(S S1))
+               (get-config :prefer-efg-productions nil))
+      (incf weight
+            (* (get-config :efg-production-weight 3)
+               (ivns-production-efg-score production))))
+
+    ;; Favorecer producciones más largas, pero sin exagerar.
+    (when (and (member symbol '(S S1))
+               (get-config :prefer-long-productions nil))
+      (incf weight
+            (max 0
+                 (- (length production) 3))))
+
+    ;; Evitar peso cero o negativo.
+    (max 1 weight)))
+
+
+(defun choose-production-for-symbol (symbol productions)
+  "Selecciona una producción para SYMBOL.
+
+   Por defecto se comporta como selección aleatoria uniforme.
+   Cuando se activan perfiles EFG, usa selección ponderada para favorecer
+   cadenas con operaciones de subrutas."
+  (if (or (not (get-config :prefer-efg-productions nil))
+          (not (member symbol '(S S1))))
+      (choose-random productions)
+
+      (let* ((weighted
+              (mapcar
+               (lambda (production)
+                 (cons production
+                       (ivns-production-weight symbol production)))
+               productions))
+
+             (total
+              (reduce #'+
+                      weighted
+                      :key #'cdr))
+
+             (ticket
+              (random total))
+
+             (acc 0))
+
+        (dolist (pair weighted)
+          (incf acc
+                (cdr pair))
+
+          (when (< ticket acc)
+            (return
+              (car pair)))))))
+
+(defun flatten-list (nested-list)
+  "Convierte una lista anidada en una lista plana de elementos."
+  (labels ((flatten-recursive (element result)
+             (cond
+               ((null element) result)
+               ((listp element)
+                (flatten-recursive (first element) (flatten-recursive (rest element) result)))
+               ((stringp element) (cons element result))
+               (t result))))
+    (flatten-recursive nested-list nil)))
+
+(defun configure-ivns-complexity-profile (profile)
+  "Configura el generador IVNS según un perfil de complejidad.
+
+   Perfiles:
+   :baseline     -> comportamiento conservador cercano al actual.
+   :efg-medium   -> favorece f/g/e con límites moderados.
+   :efg-high     -> permite cadenas más largas y más subrutas.
+   :efg-extreme  -> solo para pruebas; puede aumentar mucho los timeouts."
+
+  (setf *ivns-config*
+        (case profile
+
+          (:baseline
+           (list
+            :profile :baseline
+            :max-length 10
+            :max-imbalance 2
+            :max-complexity 14
+            :max-r 2
+            :gen-max-attempts 500
+            :max-attempts 50
+            :allow-expensive-patterns nil
+            :prefer-efg-productions nil
+            :efg-production-weight 1
+            :prefer-long-productions nil
+            :min-efg-symbols 0
+            :min-f-symbols 0
+            :min-g-symbols 0
+            :min-e-symbols 0
+            :debug-filter nil))
+
+          (:efg-medium
+           (list
+            :profile :efg-medium
+            :max-length 16
+            :max-imbalance 3
+            :max-complexity 24
+            :max-r 3
+            :gen-max-attempts 1500
+            :max-attempts 150
+            :allow-expensive-patterns :soft
+            :prefer-efg-productions t
+            :efg-production-weight 3
+            :prefer-long-productions t
+            :min-efg-symbols 2
+            :min-f-symbols 1
+            :min-g-symbols 0
+            :min-e-symbols 0
+            :debug-filter nil))
+
+          (:efg-high
+           (list
+            :profile :efg-high
+            :max-length 22
+            :max-imbalance 4
+            :max-complexity 36
+            :max-r 4
+            :gen-max-attempts 2500
+            :max-attempts 250
+            :allow-expensive-patterns :soft
+            :prefer-efg-productions t
+            :efg-production-weight 5
+            :prefer-long-productions t
+            :min-efg-symbols 3
+            :min-f-symbols 1
+            :min-g-symbols 1
+            :min-e-symbols 0
+            :debug-filter nil))
+
+          (:efg-extreme
+           (list
+            :profile :efg-extreme
+            :max-length 30
+            :max-imbalance 5
+            :max-complexity 55
+            :max-r 5
+            :gen-max-attempts 5000
+            :max-attempts 500
+            :allow-expensive-patterns t
+            :prefer-efg-productions t
+            :efg-production-weight 8
+            :prefer-long-productions t
+            :min-efg-symbols 4
+            :min-f-symbols 2
+            :min-g-symbols 1
+            :min-e-symbols 0
+            :debug-filter nil))
+
+          (otherwise
+           (error "Perfil IVNS desconocido: ~a" profile))))
+
+  *ivns-config*)
+#+END_SRC
+
+
+** Funciones principales de la generación
+- =generate-from-symbol=
+- =generate-string=
+- =filter-string=
+
+*** =generate-from-symbol=
+
+Es la función central del generador. Su papel es expandir recursivamente un símbolo de la gramática hasta obtener terminales.
+
+A grandes rasgos:
+
+1. si recibe un terminal, lo devuelve;
+2. si recibe =epsilon=, no produce nada;
+3. si recibe un no terminal, elige una producción válida al azar;
+4. expande recursivamente cada símbolo de esa producción;
+5. concatena el resultado.
+
+Además, dentro de esta expansión controla restricciones especiales, como el número máximo de símbolos =r=.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-string-generator.lisp
+
+(defun generate-from-symbol
+       (symbol
+        &key
+          (productions p-productions)
+          (term-list terminals)
+          (non-term-list non-terminals)
+          (index current-index))
+
+  "Expande recursivamente SYMBOL en secuencia de terminales según la gramática.
+
+   Cambios importantes:
+   - respeta :max-r desde *ivns-config*;
+   - puede usar selección ponderada para favorecer f/g/e;
+   - mantiene el comportamiento original si no hay perfil EFG activo."
+
+  (cond
+
+    ((terminal-p symbol :terminals term-list)
+
+     ;; Si el terminal es \"r\", contamos y cortamos el intento si excede
+     ;; el límite configurable.
+     (when (and (stringp symbol)
+                (string= symbol "r"))
+
+       (incf *r-count*)
+
+       (when (> *r-count*
+                (get-config :max-r *r-limit*))
+         (error 'r-limit-exceeded)))
+
+     (if (and (>= (length symbol) 3)
+              (string= (subseq symbol
+                               (- (length symbol) 2))
+                       "_i"))
+
+         (let ((indexed-terminal
+                (generate-indexed-terminal
+                 symbol
+                 :current-index index)))
+
+           (incf index)
+
+           (list
+            (list
+             (subseq indexed-terminal 0 1)
+             index)))
+
+         (list
+          (list symbol))))
+
+    ((eq symbol 'epsilon)
+     nil)
+
+    ((non-terminal-p symbol :non-terminals non-term-list)
+
+     (let ((prods
+            (get-productions
+             symbol
+             :p-productions productions)))
+
+       (if prods
+
+           (let ((chosen-production
+                  (choose-production-for-symbol
+                   symbol
+                   prods)))
+
+             (flatten-list
+
+              (mapcar
+               (lambda (s)
+                 (generate-from-symbol
+                  s
+                  :productions productions
+                  :term-list term-list
+                  :non-term-list non-term-list
+                  :index index))
+
+               chosen-production)))
+
+           (error
+            "No hay producción para el símbolo ~a"
+            symbol))))
+
+    (t
+     (error
+      "No se reconoce el símbolo: ~a"
+      symbol))))
+#+END_SRC
+
+
+Usa =generate-from-symbol= para intentar construir una cadena completa a partir del símbolo inicial. 
+Repite intentos hasta obtener una cadena nueva y válida o hasta agotar un máximo de intentos.
+
+En forma resumida:
+
+1. reinicia contadores temporales;
+2. genera una cadena desde el símbolo inicial;
+3. descarta la cadena si viola restricciones;
+4. la descarta también si ya ha sido generada;
+5. si sobrevive a los filtros, la guarda y la devuelve.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-string-generator.lisp
+(defun generate-string
+       (&optional
+        (start-symbol 'S)
+        (max-attempts
+         (get-config :gen-max-attempts 500)))
+
+  "Genera una cadena candidata a partir de START-SYMBOL.
+
+   No registra la cadena en GENERATED-STRINGS. El registro se realiza
+   después, cuando la cadena ya pasó los filtros."
+
+  (let ((attempts 0)
+        (result-string nil)
+        (local-index 1))
+
+    (loop while (and (< attempts max-attempts)
+                     (null result-string))
+
+          do
+            (setf *r-count* 0)
+
+            (handler-case
+                (setf result-string
+                      (generate-from-symbol
+                       start-symbol
+                       :productions p-productions
+                       :term-list terminals
+                       :non-term-list non-terminals
+                       :index local-index))
+
+              (r-limit-exceeded ()
+                (setf result-string nil))
+
+              (error ()
+                (setf result-string nil)))
+
+            (incf attempts))
+
+    result-string))
+#+END_SRC
+
+
+** Funciones de soporte experimental
+
+- =clear-generated-strings=: reinicia el historial y deja el generador limpio.
+- =show-generated-strings=: imprime todas las cadenas almacenadas.
+- =generate-multiple-strings=: útil para pruebas rápidas y muestreo.
+- =initialize-random-seed=: prepara la semilla aleatoria.
+- =cadena-balanceada-p=: comprueba si una cadena no está demasiado sesgada hacia un símbolo.
+- =test-generator=: prueba compacta de todo el flujo de generación.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-string-generator.lisp
+(defun clear-generated-strings ()
+  "Vacía la lista global de cadenas generadas."
+  (setf generated-strings nil))
+
+(defun show-generated-strings ()
+  "Muestra todas las cadenas generadas almacenadas."
+  (format t "Strings generados (~d):~%" (length generated-strings))
+  (dolist (string (reverse generated-strings))
+    (format t "  • ~a~%" string))
+  (format t "~%"))
+
+(defun generate-multiple-strings (n &optional (start-symbol 'S))
+  "Genera N cadenas aleatorias llamando N veces a generate-string."
+  (dotimes (i n)
+    (generate-string start-symbol)))
+
+(defun initialize-random-seed (&optional (seed 1))
+
+  (setf *random-state*
+        (make-random-state t))
+
+  (loop repeat seed do
+        (random 1.0))
+
+  seed)
+#+END_SRC
+
+
+*** =filter-string=
+
+Esta es la función principal que debe llamarse cuando se necesita una
+cadena IVNS lista para usar.
+
+La función no acepta cualquier cadena generada por la gramática. Primero
+genera una candidata y luego verifica que cumpla los filtros activos.
+
+Su lógica es:
+
+1. generar una cadena candidata con =generate-string=;
+2. convertir la lista de símbolos en texto;
+3. validar longitud, balance, complejidad y estructura;
+4. rechazar la cadena si no cumple;
+5. repetir hasta encontrar una cadena válida o agotar los intentos.
+
+Esta función es importante para los experimentos porque evita que IVNS
+ejecute vecindades demasiado costosas o estructuralmente inválidas.
+
+=filter-string-with-diagnostics=: genera una cadena IVNS y devuelve información diagnóstica completa sobre el proceso de generación. 
+Además de la cadena generada, informa si fue válida, cuántos intentos se hicieron, cuántas cadenas fueron válidas o inválidas 
+y cuál fue el motivo del último rechazo.
+
+=filter-string=: mantiene la interfaz simple del generador de cadenas IVNS. 
+Internamente usa =filter-string-with-diagnostics=, pero devuelve solamente la cadena válida generada 
+o =NIL= si no pudo generarse una cadena aceptable.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-string-generator.lisp
+(defun filter-string-with-diagnostics
+       (&key
+          (max-attempts
+           (get-config :max-attempts 50))
+
+          (max-imbalance
+           (get-config :max-imbalance 2))
+
+          (max-length
+           (get-config :max-length 10))
+
+          (max-complexity
+           (get-config :max-complexity 14))
+
+          (allow-expensive-patterns
+           (get-config :allow-expensive-patterns nil)))
+
+  "Genera una cadena IVNS válida y devuelve diagnósticos del filtrado.
+
+   Devuelve siete valores:
+
+   1. cadena válida o NIL;
+   2. intentos realizados;
+   3. cantidad de cadenas inválidas;
+   4. última razón de rechazo;
+   5. plist con conteos por razón de rechazo;
+   6. cantidad de cadenas generadas;
+   7. cantidad de cadenas válidas.
+
+   La cadena solo se registra en GENERATED-STRINGS después de pasar todos
+   los filtros. Esto evita que el historial quede contaminado con cadenas
+   inválidas."
+
+  (let ((attempts 0)
+        (generated-count 0)
+        (valid-count 0)
+        (invalid-count 0)
+        (generated-string nil)
+        (last-reason "")
+        (reason-counts nil))
+
+    (labels
+        ((register-reason
+             (reason)
+
+           (let* ((key
+                   (ivns-reject-reason->key reason))
+
+                  (current
+                   (getf reason-counts key 0)))
+
+             (setf (getf reason-counts key)
+                   (1+ current))
+
+             (setf last-reason
+                   (format nil "~a" reason)))))
+
+      (loop while (and (< attempts max-attempts)
+                       (null generated-string))
+
+            do
+              (incf attempts)
+
+              (let* ((generated-list
+                      (generate-string
+                       'S
+                       (get-config :gen-max-attempts 500)))
+
+                     (candidate
+                      (when generated-list
+                        (join-strings generated-list))))
+
+                (incf generated-count)
+
+                (cond
+
+                  ((null candidate)
+                   (incf invalid-count)
+                   (register-reason "generation-limit-reached"))
+
+                  ((string-seen-p candidate)
+                   (incf invalid-count)
+                   (register-reason "duplicated-string"))
+
+                  (t
+                   (multiple-value-bind
+                         (valid-p reason)
+
+                       (ivns-string-valid-p
+                        candidate
+                        :max-imbalance max-imbalance
+                        :max-length max-length
+                        :max-complexity max-complexity
+                        :allow-expensive-patterns allow-expensive-patterns)
+
+                     (if valid-p
+
+                         (progn
+                           (setf generated-string candidate)
+                           (incf valid-count)
+                           (add-string candidate))
+
+                         (progn
+                           (incf invalid-count)
+                           (register-reason reason)))))))))
+
+    (values
+     generated-string
+     attempts
+     invalid-count
+     last-reason
+     reason-counts
+     generated-count
+     valid-count)))
+
+(defun filter-string
+       (&optional
+        (max-attempts
+         (get-config :max-attempts 50))
+
+        (max-imbalance
+         (get-config :max-imbalance 2))
+
+        (max-length
+         (get-config :max-length 10)))
+
+  "Genera una cadena IVNS que pasa todos los filtros activos.
+
+   Esta función conserva la interfaz antigua: devuelve únicamente la cadena.
+   Internamente usa FILTER-STRING-WITH-DIAGNOSTICS para mantener el
+   diagnóstico y evitar que cadenas inválidas se guarden como generadas."
+
+  (multiple-value-bind
+        (cadena attempts invalid-count last-reason reason-counts
+         generated-count valid-count)
+
+      (filter-string-with-diagnostics
+       :max-attempts max-attempts
+       :max-imbalance max-imbalance
+       :max-length max-length
+       :max-complexity
+       (get-config :max-complexity 14)
+       :allow-expensive-patterns
+       (get-config :allow-expensive-patterns nil))
+
+    (declare
+     (ignore attempts
+             invalid-count
+             reason-counts
+             generated-count
+             valid-count))
+
+    (when (and (null cadena)
+               (get-config :debug-filter nil))
+
+      (format t
+              "~%[IVNS-FILTER] No se generó cadena válida. Última razón: ~a~%"
+              last-reason))
+
+    cadena))
+
+(defun test-generator ()
+  "Función de prueba del generador de cadenas."
+  (let ((resultado (filter-string)))
+    (format t "=== RESULTADO DE FILTER ===")
+    (format t "~%Cadena generada: ~a" resultado)
+    (format t "~%Longitud: ~d" (if resultado (length resultado) 0))
+    (format t "~%~%Todas las cadenas generadas durante el proceso:")
+    (show-generated-strings)))
+#+END_SRC
+
+
+* Archivo: ivns-sequence-interpreter.lisp
+
+Esta sección procesa la cadena generada y la transforma en una secuencia
+de acciones más concreta.
+
+Su responsabilidad es:
+
+- detectar ambigüedad estructural;
+- asignar subíndices;
+- producir una lista de acciones;
+- producir una lista de tokens.
+
+** Idea general de la sección
+
+La salida del generador todavía es demasiado abstracta para usarse directamente en el VRP. 
+En esta parte se le da significado operativo a la cadena. Es decir, aquí se decide cómo leer cada símbolo,
+cómo numerar rutas, clientes y subrutas, y cómo transformar una secuencia compacta de letras en una lista explícita de acciones entendibles.
+
+** Funciones auxiliares
+
+- =zero-indexes=: devuelve las posiciones de rutas aún no marcadas como usadas.
+- =choose-route-index=: escoge una ruta disponible o, si no hay ninguna libre, indica que no fue posible reservar una.
+- =pick-one-random=: toma un elemento aleatorio de una lista y lo elimina de ella.
+- =join-strings=: une fragmentos de texto en una cadena única.
+
+Estas funciones sirven de apoyo para la interpretación principal. 
+Manejan decisiones pequeñas pero frecuentes, como elegir una ruta, sacar un cliente al azar o unir partes de una salida textual.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-sequence-interpreter.lisp
+(in-package :ivns)
+
+;; ==============================================================
+;;     FUNCIONES AUXILIARES
+;; ==============================================================
+
+(defun zero-indexes (routes)
+  "Devuelve los índices de las rutas libres (donde el valor es 0)."
+  (loop for i from 0 below (length routes)
+        when (= (nth i routes) 0)
+        collect i))
+
+(defun choose-route-index (routes)
+  "Elige aleatoriamente un índice de ruta disponible."
+  (let ((available-indexes (zero-indexes routes)))
+    (if available-indexes
+        (let ((idx (nth (random (length available-indexes)) available-indexes)))
+          (values idx T))
+        (values nil nil))))
+
+(defun pick-one-random (lst)
+  "Elimina y retorna un elemento aleatorio de la lista."
+  (if (null lst)
+      (values nil lst)
+      (let* ((n (length lst))
+             (idx (random n))
+             (elem (nth idx lst)))
+        (values elem (append (subseq lst 0 idx) (subseq lst (1+ idx)))))))
+
+(defun join-strings (parts)
+  "Concatena una lista de strings en un solo string."
+  (apply #'concatenate 'string parts))
+#+END_SRC
+
+
+** Validación estructural de cadenas
+
+La gramática puede producir muchas cadenas diferentes, pero no todas son
+convenientes para ejecutar sobre una solución CVRP. Algunas pueden ser muy
+largas, estar desbalanceadas, generar vecindarios demasiado costosos o no
+tener sentido desde el punto de vista de las operaciones que representan.
+
+Por eso, antes de traducir una cadena a criterio VRP, se aplican varios
+filtros.
+
+Las funciones de esta sección cumplen los siguientes roles:
+
+- =ivns-complexity-score=:
+  calcula una medida simple de complejidad de la cadena.
+
+- =ivns-frequency-balanced-p=:
+  verifica que la cantidad de símbolos de selección e inserción no esté
+  demasiado desbalanceada.
+
+- =ivns-balanced-structure-p=:
+  revisa el balance general entre operaciones que abren selecciones y
+  operaciones que las consumen.
+
+- =ivns-expensive-pattern-p=:
+  detecta patrones que suelen producir vecindarios caros, repetitivos o poco
+  útiles.
+
+- =ivns-semantic-structure-valid-p=:
+  valida que la cadena tenga sentido operativo mínimo. Por ejemplo, no
+  permite insertar un cliente si antes no fue seleccionado.
+
+- =ivns-string-valid-p=:
+  reúne todos los filtros anteriores y devuelve una decisión final sobre la
+  cadena.
+
+- =ivns-reject-reason->key=: convierte una razón textual de rechazo de una cadena IVNS en una clave simbólica estable. 
+Esta clave permite contar automáticamente los motivos de rechazo en los CSV, como cadenas demasiado largas, 
+desbalanceadas, duplicadas o semánticamente inválidas.
+
+Estas funciones son una capa de seguridad entre la generación gramatical y
+la ejecución sobre el CVRP. Su objetivo es evitar que IVNS pierda tiempo en
+vecindades inválidas, demasiado costosas o imposibles de interpretar.
+
+*** =check-ambiguity=
+
+Esta función conserva el nombre usado en versiones anteriores del proyecto,
+pero en la versión actual funciona como una validación estructural.
+
+Su objetivo es detectar si una cadena IVNS puede interpretarse de forma
+segura antes de traducirla a acciones.
+
+Por ejemplo, rechaza casos como:
+
+- insertar un cliente sin haber seleccionado uno antes;
+- intercambiar dos clientes cuando solo hay uno disponible;
+- insertar una subruta sin haber seleccionado una subruta;
+- terminar la cadena dejando clientes o subrutas sin consumir.
+
+La función devuelve tres valores:
+
+1. si existe un problema estructural;
+2. la cadena analizada;
+3. la razón textual de la decisión.
+
+Esta función ayuda a explicar por qué una cadena generada no debe llegar
+a la fase de construcción del criterio VRP.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-sequence-interpreter.lisp
+(in-package :ivns)
+
+(defun ivns-complexity-score (cadena)
+
+  "Calcula una medida simple de complejidad para una cadena IVNS."
+
+  (if (or (null cadena)
+          (not (stringp cadena)))
+
+      0
+
+      (let ((score 0))
+
+        ;; costo base por longitud
+        (incf score
+              (length cadena))
+
+        ;; selección de rutas
+        (incf score
+              (* 2
+                 (count #\r cadena)))
+
+        ;; selección e inserción de clientes
+        (incf score
+              (* 1
+                 (count #\a cadena)))
+
+        (incf score
+              (* 1
+                 (count #\b cadena)))
+
+        ;; intercambio de clientes
+        (incf score
+              (* 3
+                 (count #\c cadena)))
+
+        ;; selección e inserción de subrutas
+        (incf score
+              (* 2
+                 (count #\f cadena)))
+
+        (incf score
+              (* 2
+                 (count #\g cadena)))
+
+        ;; intercambio de subrutas
+        (incf score
+              (* 4
+                 (count #\e cadena)))
+
+        score)))
+
+
+(defun ivns-frequency-balanced-p
+       (cadena
+        &key
+          (limite-desequilibrio
+           (get-config :max-imbalance 2)))
+
+  "Filtro de balance simple por frecuencia de símbolos."
+
+  (if (or (null cadena)
+          (not (stringp cadena)))
+
+      nil
+
+      (let* ((r-count
+              (count #\r cadena))
+
+             (a-count
+              (count #\a cadena))
+
+             (b-count
+              (count #\b cadena))
+
+             (c-count
+              (count #\c cadena))
+
+             (f-count
+              (count #\f cadena))
+
+             (g-count
+              (count #\g cadena))
+
+             (e-count
+              (count #\e cadena))
+
+             (client-open
+              a-count)
+
+             (client-close
+              (+ b-count
+                 (* 2 c-count)))
+
+             (subroute-open
+              f-count)
+
+             (subroute-close
+              (+ g-count
+                 (* 2 e-count))))
+
+        (and
+         (> r-count 0)
+
+         (<= (abs (- client-open
+                     client-close))
+             limite-desequilibrio)
+
+         (<= (abs (- subroute-open
+                     subroute-close))
+             limite-desequilibrio)))))
+
+
+(defun ivns-balanced-structure-p (cadena)
+
+  "Verifica si la cadena tiene una estructura razonablemente balanceada."
+
+  (if (or (null cadena)
+          (not (stringp cadena)))
+
+      nil
+
+      (let* ((opens
+              (+ (count #\a cadena)
+                 (count #\f cadena)))
+
+             (closes
+              (+ (count #\b cadena)
+                 (* 2
+                    (count #\c cadena))
+                 (count #\g cadena)
+                 (* 2
+                    (count #\e cadena))))
+
+             (max-imbalance
+              (get-config :max-imbalance 2)))
+
+        (<= (abs (- opens closes))
+            max-imbalance))))
+
+
+(defun ivns-expensive-pattern-p (cadena)
+
+  "Detecta patrones que suelen generar vecindarios caros o cadenas poco útiles."
+
+  (and cadena
+
+       (or
+
+        ;; repeticiones de rutas / clientes / subrutas
+        (search "rfrfrf" cadena)
+        (search "rarara" cadena)
+
+        ;; demasiadas selecciones consecutivas
+        (search "aaaa" cadena)
+        (search "ffff" cadena)
+
+        ;; demasiadas inserciones consecutivas
+        (search "bbbb" cadena)
+        (search "gggg" cadena)
+
+        ;; swaps repetidos
+        (search "ccc" cadena)
+        (search "eee" cadena)
+
+        ;; patrones que aparecen frecuentemente como vecinos NIL
+        (search "rfff" cadena)
+        (search "fffe" cadena)
+        (search "fffeg" cadena)
+        (search "rfffe" cadena)
+
+        ;; combinaciones largas de clientes
+        (search "raaa" cadena)
+        (search "aaac" cadena))))
+
+
+(defun ivns-semantic-structure-valid-p (cadena)
+
+  "Valida la estructura semántica mínima de una cadena IVNS.
+
+   Devuelve tres valores:
+   1. T o NIL;
+   2. razón textual;
+   3. clave estable de rechazo.
+
+   Esta función no evalúa el VRP real. Solo comprueba que la cadena no
+   intente usar clientes, rutas o subrutas sin haberlos seleccionado antes."
+  (if (null cadena)
+
+      (values nil "Cadena NIL." :unknown)
+
+      (let ((routes 0)
+            (clients 0)
+            (subroutes 0)
+            (valid t)
+            (reason ""))
+
+        (loop
+          for ch across cadena
+          while valid
+          do
+            (case ch
+
+              (#\r
+               (incf routes))
+
+              (#\a
+               (if (> routes 0)
+                   (incf clients)
+                   (progn
+                     (setf valid nil)
+                     (setf reason "Aparece 'a' sin ruta seleccionada."))))
+
+              (#\b
+               (cond
+                 ((<= routes 0)
+                  (setf valid nil)
+                  (setf reason "Aparece 'b' sin ruta disponible."))
+
+                 ((<= clients 0)
+                  (setf valid nil)
+                  (setf reason "Aparece 'b' sin cliente seleccionado."))
+
+                 (t
+                  (decf clients))))
+
+              (#\c
+               (if (>= clients 2)
+                   (decf clients 2)
+                   (progn
+                     (setf valid nil)
+                     (setf reason "Aparece 'c' sin dos clientes seleccionados."))))
+
+              (#\f
+               (if (> routes 0)
+                   (incf subroutes)
+                   (progn
+                     (setf valid nil)
+                     (setf reason "Aparece 'f' sin ruta seleccionada."))))
+
+              (#\g
+               (cond
+                 ((<= routes 0)
+                  (setf valid nil)
+                  (setf reason "Aparece 'g' sin ruta disponible."))
+
+                 ((<= subroutes 0)
+                  (setf valid nil)
+                  (setf reason "Aparece 'g' sin subruta seleccionada."))
+
+                 (t
+                  (decf subroutes))))
+
+              (#\e
+               (if (>= subroutes 2)
+                   (decf subroutes 2)
+                   (progn
+                     (setf valid nil)
+                     (setf reason "Aparece 'e' sin dos subrutas seleccionadas."))))
+
+              (otherwise
+               (setf valid nil)
+               (setf reason
+                     (format nil
+                             "Símbolo IVNS desconocido: ~a."
+                             ch)))))
+
+        (cond
+          ((not valid)
+           (values nil reason :semantic-invalid))
+
+          ((> clients 0)
+           (values nil
+                   "La cadena termina con clientes seleccionados sin consumir."
+                   :semantic-invalid))
+
+          ((> subroutes 0)
+           (values nil
+                   "La cadena termina con subrutas seleccionadas sin consumir."
+                   :semantic-invalid))
+
+          (t
+           (values t "ok" :ok))))))
+
+(defun ivns-count-efg-symbols (cadena)
+  "Cuenta cuántos símbolos de subruta aparecen en CADENA."
+  (if cadena
+      (+ (count #\e cadena)
+         (count #\f cadena)
+         (count #\g cadena))
+      0))
+
+
+(defun ivns-required-symbol-counts-p (cadena)
+  "Verifica requisitos mínimos configurables para e/f/g."
+  (let ((min-efg
+         (get-config :min-efg-symbols 0))
+
+        (min-f
+         (get-config :min-f-symbols 0))
+
+        (min-g
+         (get-config :min-g-symbols 0))
+
+        (min-e
+         (get-config :min-e-symbols 0)))
+
+    (cond
+
+      ((< (ivns-count-efg-symbols cadena)
+          min-efg)
+       (values nil
+               (format nil
+                       "Pocos símbolos e/f/g: ~a < ~a."
+                       (ivns-count-efg-symbols cadena)
+                       min-efg)))
+
+      ((< (count #\f cadena)
+          min-f)
+       (values nil
+               (format nil
+                       "Pocas f: ~a < ~a."
+                       (count #\f cadena)
+                       min-f)))
+
+      ((< (count #\g cadena)
+          min-g)
+       (values nil
+               (format nil
+                       "Pocas g: ~a < ~a."
+                       (count #\g cadena)
+                       min-g)))
+
+      ((< (count #\e cadena)
+          min-e)
+       (values nil
+               (format nil
+                       "Pocas e: ~a < ~a."
+                       (count #\e cadena)
+                       min-e)))
+
+      (t
+       (values t "ok")))))
+
+
+(defun ivns-hard-expensive-pattern-p (cadena)
+  "Detecta patrones extremadamente costosos."
+  (and cadena
+       (or
+        (search "aaaaa" cadena)
+        (search "fffff" cadena)
+        (search "ggggg" cadena)
+        (search "eeee" cadena)
+        (search "cccc" cadena)
+        (search "rfrfrfrf" cadena)
+        (search "rararara" cadena))))
+
+
+(defun ivns-expensive-pattern-forbidden-p
+       (cadena allow-expensive-patterns)
+
+  "Decide si una cadena debe rechazarse por patrón costoso.
+
+   NIL   -> filtro estricto.
+   :SOFT -> permite más f/g/e, pero bloquea extremos.
+   T     -> permite patrones costosos."
+
+  (cond
+
+    ((eq allow-expensive-patterns t)
+     nil)
+
+    ((eq allow-expensive-patterns :soft)
+     (ivns-hard-expensive-pattern-p cadena))
+
+    (t
+     (ivns-expensive-pattern-p cadena))))
+
+(defun ivns-string-valid-p
+       (cadena
+        &key
+          (max-imbalance
+           (get-config :max-imbalance 2))
+
+          (max-length
+           (get-config :max-length 10))
+
+          (max-complexity
+           (get-config :max-complexity 14))
+
+          (allow-expensive-patterns
+           (get-config :allow-expensive-patterns nil)))
+
+  "Filtro unificado de cadenas IVNS.
+
+   Devuelve tres valores:
+   1. T o NIL;
+   2. razón textual;
+   3. clave estable de rechazo o :ok."
+  (cond
+    ((null cadena)
+     (values nil "Cadena NIL." :unknown))
+
+    ((not (stringp cadena))
+     (values nil "La cadena IVNS no es string." :unknown))
+
+    ((= (length cadena) 0)
+     (values nil "Cadena vacía." :too-short))
+
+    ((> (length cadena)
+        max-length)
+     (values nil
+             (format nil
+                     "Longitud excesiva: ~a > ~a."
+                     (length cadena)
+                     max-length)
+             :too-long))
+
+    ((> (count #\r cadena)
+        (get-config :max-r *r-limit*))
+     (values nil
+             (format nil
+                     "Demasiadas rutas seleccionadas: ~a."
+                     (count #\r cadena))
+             :too-many-r))
+
+    ((not
+      (cadena-balanceada-p
+       cadena
+       :limite-desequilibrio max-imbalance))
+     (values nil
+             "Cadena desbalanceada por frecuencia de símbolos."
+             :unbalanced))
+
+    ((not
+      (ivns-balanced-structure-p cadena))
+     (values nil
+             "Cadena desbalanceada estructuralmente."
+             :unbalanced))
+
+    ((> (ivns-complexity-score cadena)
+        max-complexity)
+     (values nil
+             (format nil
+                     "Complejidad excesiva: ~a > ~a."
+                     (ivns-complexity-score cadena)
+                     max-complexity)
+             :too-long))
+
+    ((and
+      (not allow-expensive-patterns)
+      (ivns-expensive-pattern-p cadena))
+     (values nil
+             "Cadena rechazada por patrón costoso."
+             :forbidden-expensive-pattern))
+
+    (t
+     (multiple-value-bind
+           (semantic-ok reason semantic-key)
+
+         (ivns-semantic-structure-valid-p cadena)
+
+       (if semantic-ok
+           (values t "ok" :ok)
+           (values nil reason semantic-key))))))
+
+(defun ivns-reject-reason->key
+       (reason)
+
+  "Convierte una razón de rechazo de cadena IVNS en una clave estable.
+
+   Las claves devueltas se usan para llenar los contadores:
+
+   :too-many-r
+   :too-short
+   :too-long
+   :unbalanced
+   :missing-required-symbol
+   :forbidden-expensive-pattern
+   :semantic-invalid
+   :duplicated-string
+   :generation-limit-reached
+   :unknown"
+
+  (cond
+
+    ((keywordp reason)
+     reason)
+
+    (t
+     (let ((text
+            (string-downcase
+             (format nil "~a" reason))))
+
+       (cond
+
+         ((or (search "too-many-r" text)
+              (search "r-limit" text)
+              (search "max-r" text)
+              (search "muchas r" text))
+          :too-many-r)
+
+         ((or (search "too-short" text)
+              (search "short" text)
+              (search "corta" text))
+          :too-short)
+
+         ((or (search "too-long" text)
+              (search "long" text)
+              (search "larga" text)
+              (search "length" text))
+          :too-long)
+
+         ((or (search "unbalanced" text)
+              (search "desbalance" text)
+              (search "balance" text))
+          :unbalanced)
+
+         ((or (search "missing" text)
+              (search "required" text)
+              (search "requerido" text)
+              (search "min-efg" text)
+              (search "min-e" text)
+              (search "min-f" text)
+              (search "min-g" text))
+          :missing-required-symbol)
+
+         ((or (search "forbidden" text)
+              (search "expensive" text)
+              (search "costoso" text)
+              (search "pattern" text))
+          :forbidden-expensive-pattern)
+
+         ((or (search "semantic" text)
+              (search "semant" text)
+              (search "estructura" text))
+          :semantic-invalid)
+
+         ((or (search "duplicated" text)
+              (search "duplicate" text)
+              (search "duplicada" text)
+              (search "repetida" text))
+          :duplicated-string)
+
+         ((or (search "generation-limit" text)
+              (search "limit" text)
+              (search "limite" text)
+              (search "límite" text)
+              (search "agot" text))
+          :generation-limit-reached)
+
+         (t
+          :unknown))))))  
+
+(defun check-ambiguity
+       (input-string
+        &key
+          (routes 0)
+          (clients 0)
+          (sub-routes 0))
+
+  "Detecta si una cadena IVNS tiene ambigüedad o estructura inválida."
+
+  (declare
+   (ignore routes clients sub-routes))
+
+  (multiple-value-bind
+        (valid-p reason)
+
+      (ivns-semantic-structure-valid-p
+       input-string)
+
+    (values
+     (not valid-p)
+     input-string
+     reason)))
+#+END_SRC
+#+RESULTS:
+: [exit 1]
+: Unsupported src language: lisp
+
+** Diferencia entre validar e interpretar
+
+En este archivo hay dos pasos distintos:
+
+1. validar la cadena;
+2. interpretar la cadena.
+
+Validar significa comprobar que la cadena tiene sentido mínimo. Por
+ejemplo, no se debe insertar un cliente si antes no fue seleccionado.
+
+Interpretar significa convertir cada símbolo en una acción concreta del
+VRP. Por ejemplo, convertir =a= en “seleccionar cliente C1 desde la ruta
+R1”.
+
+Esta separación evita que el traductor reciba cadenas imposibles.
+
+** Función central de interpretación
+
+*** =apply-subindices=
+
+Esta es la función central del intérprete IVNS.
+
+Recibe una cadena como texto y la convierte en una representación más rica,
+formada por acciones y tokens.
+
+Por ejemplo, una cadena como =raac= deja de verse como letras aisladas y
+pasa a representar una secuencia de acciones sobre rutas y clientes.
+
+La función produce tres salidas:
+
+1. una cadena anotada;
+2. una lista legible de acciones;
+3. una lista de tokens estructurados.
+
+La lista legible de acciones es útil para depuración y documentación. La
+lista de tokens estructurados es útil para validación y traducción
+automática.
+
+Esta función es el puente entre el lenguaje formal de IVNS y la construcción
+de criterios de vecindad ejecutables.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-sequence-interpreter.lisp
+(defun apply-subindices (input-string)
+
+  "Procesa una cadena IVNS y genera:
+   1. cadena anotada;
+   2. lista de acciones legibles;
+   3. lista de tokens estructurados.
+
+   Antes de interpretar, valida la cadena para evitar que lleguen
+   secuencias imposibles al traductor de acciones."
+
+  (multiple-value-bind
+        (valid-p reason)
+
+      (ivns-string-valid-p input-string)
+
+    (unless valid-p
+      (error "Cadena IVNS rechazada por filtros: ~a | cadena=~a"
+             reason
+             input-string)))
+
+  (let ((routes nil)
+        (clients nil)
+        (next-client-id 1)
+        (last-picked-client nil)
+        (subroutes nil)
+        (next-subroute-id 1)
+        (last-picked-subroute nil)
+        (tokens nil)
+        (l-tokens nil)
+        (list-string nil)
+        (any-annotation? t))
+
+    (loop for ch across input-string do
+
+          (case ch
+
+            (#\r
+             (setf routes
+                   (append routes
+                           (list 0)))
+
+             (let ((token
+                    (format nil
+                            "r_~d"
+                            (length routes))))
+
+               (push token tokens))
+
+             (push
+              (list 'r
+                    (length routes))
+              l-tokens)
+
+             (push
+              (list "select-route"
+                    (format nil
+                            "r~d"
+                            (length routes)))
+              list-string))
+
+            (#\a
+             (setf clients
+                   (append clients
+                           (list next-client-id)))
+
+             (multiple-value-bind
+                   (idx has-zero?)
+
+                 (choose-route-index routes)
+
+               (if idx
+                   (when has-zero?
+                     (setf (nth idx routes)
+                           1))
+                   (setf idx
+                         (random
+                          (length routes))))
+
+               (let ((token
+                      (format nil
+                              "a_~d"
+                              (1+ idx))))
+
+                 (push token tokens))
+
+               (push
+                (list 'a
+                      (1+ idx)
+                      next-client-id)
+                l-tokens)
+
+               (push
+                (list "select-client"
+                      (format nil
+                              "a~d"
+                              next-client-id)
+                      "from"
+                      (format nil
+                              "r~d"
+                              (1+ idx)))
+                list-string))
+
+             (incf next-client-id))
+
+            (#\b
+             (multiple-value-bind
+                   (clt new-clients)
+
+                 (pick-one-random clients)
+
+               (setf last-picked-client clt)
+               (setf clients new-clients))
+
+             (multiple-value-bind
+                   (idx has-zero?)
+
+                 (choose-route-index routes)
+
+               (if idx
+                   (when has-zero?
+                     (setf (nth idx routes)
+                           1))
+                   (setf idx
+                         (random
+                          (length routes))))
+
+               (let ((token
+                      (format nil
+                              "b_~d~d"
+                              (1+ idx)
+                              last-picked-client)))
+
+                 (push token tokens))
+
+               (push
+                (list 'b
+                      (1+ idx)
+                      last-picked-client)
+                l-tokens)
+
+               (push
+                (list "insert-client"
+                      (format nil
+                              "b~d"
+                              last-picked-client)
+                      "into"
+                      (format nil
+                              "r~d"
+                              (1+ idx)))
+                list-string)))
+
+            (#\c
+             (multiple-value-bind
+                   (e1 rest1)
+
+                 (pick-one-random clients)
+
+               (multiple-value-bind
+                     (e2 rest2)
+
+                   (pick-one-random rest1)
+
+                 (setf last-picked-client e2)
+                 (setf clients rest2)
+
+                 (let ((token
+                        (format nil
+                                "c_~d~d"
+                                e1
+                                e2)))
+
+                   (push token tokens))
+
+                 (push
+                  (list 'c
+                        e1
+                        e2)
+                  l-tokens)
+
+                 (push
+                  (list "swap-clients"
+                        (format nil
+                                "c~d"
+                                e1)
+                        (format nil
+                                "c~d"
+                                e2))
+                  list-string))))
+
+            (#\f
+             (setf subroutes
+                   (append subroutes
+                           (list next-subroute-id)))
+
+             (multiple-value-bind
+                   (idx has-zero?)
+
+                 (choose-route-index routes)
+
+               (if idx
+                   (when has-zero?
+                     (setf (nth idx routes)
+                           1))
+                   (setf idx
+                         (random
+                          (length routes))))
+
+               (let ((token
+                      (format nil
+                              "f_~d"
+                              (1+ idx))))
+
+                 (push token tokens))
+
+               (push
+                (list 'f
+                      (1+ idx)
+                      next-subroute-id)
+                l-tokens)
+
+               (push
+                (list "select-subroute"
+                      (format nil
+                              "f~d"
+                              next-subroute-id)
+                      "from"
+                      (format nil
+                              "r~d"
+                              (1+ idx)))
+                list-string))
+
+             (incf next-subroute-id))
+
+            (#\g
+             (multiple-value-bind
+                   (sr new-subroutes)
+
+                 (pick-one-random subroutes)
+
+               (setf last-picked-subroute sr)
+               (setf subroutes new-subroutes))
+
+             (multiple-value-bind
+                   (idx has-zero?)
+
+                 (choose-route-index routes)
+
+               (if idx
+                   (when has-zero?
+                     (setf (nth idx routes)
+                           1))
+                   (setf idx
+                         (random
+                          (length routes))))
+
+               (let ((token
+                      (format nil
+                              "g_~d~d"
+                              (1+ idx)
+                              last-picked-subroute)))
+
+                 (push token tokens))
+
+               (push
+                (list 'g
+                      (1+ idx)
+                      last-picked-subroute)
+                l-tokens)
+
+               (push
+                (list "insert-subroute"
+                      (format nil
+                              "f~d"
+                              last-picked-subroute)
+                      "into"
+                      (format nil
+                              "r~d"
+                              (1+ idx)))
+                list-string)))
+
+            (#\e
+             (multiple-value-bind
+                   (e1 rest1)
+
+                 (pick-one-random subroutes)
+
+               (multiple-value-bind
+                     (e2 rest2)
+
+                   (pick-one-random rest1)
+
+                 (setf last-picked-subroute e2)
+                 (setf subroutes rest2)
+
+                 (let ((token
+                        (format nil
+                                "e_~d~d"
+                                e1
+                                e2)))
+
+                   (push token tokens))
+
+                 (push
+                  (list 'e
+                        e1
+                        e2)
+                  l-tokens)
+
+                 (push
+                  (list "swap-subroutes"
+                        (format nil
+                                "f~d"
+                                e1)
+                        (format nil
+                                "f~d"
+                                e2))
+                  list-string))))
+
+            (otherwise
+             (error "Carácter IVNS desconocido: ~a"
+                    ch))))
+
+    (setf tokens
+          (nreverse tokens))
+
+    (setf l-tokens
+          (nreverse l-tokens))
+
+    (setf list-string
+          (nreverse list-string))
+
+    (let ((result
+           (if any-annotation?
+               (join-strings tokens)
+               input-string)))
+
+      (values
+       result
+       list-string
+       l-tokens))))
+#+END_SRC
+
+
+* Traducción de acciones IVNS a criterio VRP
+
+Esta sección conecta el lenguaje formal de IVNS con el framework VRP.
+
+Hasta este punto, el sistema ya puede:
+
+1. generar una cadena;
+2. validarla;
+3. interpretarla como acciones.
+
+Pero el framework VRP no ejecuta directamente cadenas de texto. Necesita
+un criterio de vecindad en su formato interno.
+
+Por eso esta sección traduce acciones IVNS a operaciones VRP.
+
+El archivo generado es:
+
+- =../src/vrp-ivns.lisp=
+
+El flujo de traducción es:
+
+1. convertir nombres textuales en símbolos del paquete =vrp=;
+2. traducir cada acción IVNS a una operación VRP;
+3. agrupar las operaciones;
+4. construir un criterio ejecutable con =make-neighborhood-criterion=.
+
+Esta sección es el puente entre la parte formal del método y la ejecución
+real sobre soluciones CVRP.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-ivns.lisp
+
+(in-package :vrp)
+
+(defun ivns-route-sym (txt)
+  (intern (string-upcase txt) (find-package :vrp)))
+
+(defun ivns-sym (txt)
+  "Convierte texto como r1/c2/f1 en símbolo del paquete VRP."
+  (intern (string-upcase txt) :vrp))
+
+(defun ivns-client-sym (txt)
+  ;; a1, b1, c1  -> C1
+  (let ((n (subseq txt 1)))
+    (intern (format nil "C~A" (string-upcase n))
+            (find-package :vrp))))
+
+(defun ivns-subroute-sym (txt)
+  ;; f1, g1, e1 -> Z1
+  (let ((n (subseq txt 1)))
+    (intern (format nil "Z~A" (string-upcase n))
+            (find-package :vrp))))
+#+END_SRC
+
+
+** Funciones principales
+
+*** =ivns-action->vrp-op=
+
+Traduce una sola acción IVNS a su operación equivalente en el lenguaje del VRP. Es un traductor uno-a-uno entre dos representaciones:
+
+- una representación más legible y simbólica del IVNS;
+- una representación compatible con el framework VRP.
+
+Por ejemplo, convierte acciones como =select-route= o =swap-clients= en la sintaxis exacta que entiende el motor del VRP.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-ivns.lisp
+(defun ivns-action->vrp-op (action)
+  (cond
+    ((equal (first action) "select-route")
+     `(select-route ,(ivns-route-sym (second action))))
+
+    ((equal (first action) "select-client")
+     `(select-client
+       ,(ivns-client-sym (second action))
+       from
+       ,(ivns-route-sym (fourth action))))
+
+    ((equal (first action) "insert-client")
+     `(insert-client
+       ,(ivns-client-sym (second action))
+       into
+       ,(ivns-route-sym (fourth action))))
+
+    ((equal (first action) "swap-clients")
+     `(swap-clients
+       ,(ivns-client-sym (second action))
+       ,(ivns-client-sym (third action))))
+
+    ((equal (first action) "select-subroute")
+     `(select-subroute
+       ,(ivns-subroute-sym (second action))
+       from
+       ,(ivns-route-sym (fourth action))))
+
+    ((equal (first action) "insert-subroute")
+     `(insert-subroute
+       ,(ivns-subroute-sym (second action))
+       into
+       ,(ivns-route-sym (fourth action))))
+
+    ((equal (first action) "swap-subroutes")
+     `(swap-subroutes
+       ,(ivns-subroute-sym (second action))
+       ,(ivns-subroute-sym (third action))))
+
+    (t
+     (error "Operacion desconocida: ~a" action))))
+#+END_SRC
+
+
+*** =ivns-actions->criterion=
+
+Recibe una lista completa de acciones IVNS ya interpretadas y construye con ellas un criterio de vecindad utilizable por el VRP.
+
+Su papel es:
+
+1. traducir cada acción individual;
+2. agrupar la secuencia traducida;
+3. construir el objeto criterio que luego podrá ejecutarse sobre una solución.
+
+Aquí ocurre el puente entre el lenguaje formal del IVNS y el espacio operativo del VRP.
+#+BEGIN_SRC lisp :tangle ../src/vrp-ivns.lisp
+(defun ivns-actions->criterion
+       (actions
+        &key
+          (print-description nil))
+
+  "Convierte una lista de acciones IVNS en un criterio ejecutable del VRP.
+
+   ACTIONS viene de `apply-subindices`.
+   PRINT-DESCRIPTION permite imprimir la descripción generada solo cuando
+   se está depurando manualmente. En experimentos debe mantenerse en NIL."
+
+  (let* ((description
+          (mapcar #'ivns-action->vrp-op
+                  actions))
+
+         (*package*
+          (find-package :vrp)))
+
+    (when print-description
+      (format t "~%Description generado:~%")
+      (dolist (d description)
+        (format t "~s~%" d)))
+
+    (eval
+     `(make-neighborhood-criterion
+       ',description
+       +exhaustive-search-strategy+
+       +best-improvement+))))
+#+END_SRC
+
+
+** Utilidades de tiempo, gap y evaluación de soluciones
+
+Estas funciones auxiliares se usan durante la ejecución de IVNS para medir
+tiempo, calcular calidad relativa y evaluar soluciones.
+
+No forman parte de la gramática ni de la traducción de cadenas. Su papel es
+apoyar la ejecución experimental del algoritmo.
+
+Las funciones incluidas son:
+
+- =ivns-current-time=:
+  obtiene el tiempo actual en segundos.
+- =ivns-elapsed-time=:
+  calcula el tiempo transcurrido desde un instante inicial.
+- =ivns-compute-gap=:
+  calcula el gap porcentual respecto a la mejor solución conocida.
+- =ivns-evaluate-solution=:
+  evalúa una solución CVRP usando el motor del framework VRP y actualiza su
+  costo.
+
+Estas utilidades permiten que IVNS registre métricas comparables con VNS,
+especialmente tiempo de ejecución, costo total, penalización y gap respecto
+al BKS.
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-ivns.lisp  
+(defun ivns-current-time ()
+  (/ (get-internal-real-time)
+     internal-time-units-per-second))
+
+
+(defun ivns-elapsed-time (start)
+  (- (ivns-current-time) start))
+
+
+(defun ivns-compute-gap (best known-best)
+  (if (and known-best
+           (> known-best 0))
+      (* 100.0
+         (/ (- best known-best)
+            known-best))
+      0))
+
+
+(defun ivns-evaluate-solution
+    (solution
+     problem
+     penalty-factor)
+
+  (let ((action
+         (basic-cvrp-action
+          :penalty-factor penalty-factor)))
+
+    (simulate-solution
+     solution
+     problem
+     action)
+
+    (let ((total
+           (+ (total-distance action)
+              (total-penalty action))))
+
+      (setf (cost solution)
+            total)
+
+      (values
+       total
+       (total-distance action)
+       (total-penalty action)))))
+#+END_SRC
+
+** =ivns-run=
+
+Esta función ejecuta una versión básica de IVNS sobre una solución real del
+CVRP.
+
+Su objetivo principal es comprobar que el flujo completo funciona:
+
+1. generar una cadena IVNS válida;
+2. interpretarla como acciones;
+3. convertir las acciones en un criterio VRP;
+4. construir una solución inicial;
+5. aplicar el criterio sobre la solución;
+6. evaluar el vecino generado;
+7. aceptar la mejora si reduce el costo;
+8. registrar una traza simple de la ejecución.
+
+Esta función es útil para pruebas manuales y depuración.
+
+Para la comparación experimental formal entre VNS e IVNS debe usarse
+=ivns-run-experimental=, definido en =experiments-vns-ivns.org= y tanglado
+en =../src/ivns-experiments.lisp=.
+
+
+#+BEGIN_SRC lisp :tangle ../src/vrp-ivns.lisp       
+;; ============================================
+;; EJECUCIÓN REAL
+;; ============================================
+(defun ivns-run
+    (&key
+       (problem a-n33-k5-problem)
+       (max-iter 100)
+       (penalty-factor 1000)
+       (known-best nil)
+       (quiet nil))
+
+  (format t "~%======================================")
+  (format t "~% IVNS + VRP")
+  (format t "~%======================================~%")
+
+  (let* ((start-time
+          (ivns-current-time))
+
+         ;; solucion actual
+         (current-solution
+          (make-initial-solution-for-cvrp-random
+           problem))
+
+         ;; mejor global
+         (best-global nil)
+
+         ;; acciones auxiliares
+         (delta-act nil)
+
+         ;; costos
+         (initial-cost 0)
+         (current-cost 0)
+         (best-cost 0)
+
+         ;; control
+         (accepted-improvements 0)
+         (rejected-moves 0)
+         (invalid-neighbors 0)
+
+         ;; trazas
+         (used-strings '())
+         (trace '()))
+
+    ;; ===================================
+    ;; COSTO INICIAL
+    ;; ===================================
+
+    (multiple-value-bind
+          (cost distance penalty)
+
+        (ivns-evaluate-solution
+         current-solution
+         problem
+         penalty-factor)
+
+      (declare (ignore distance penalty))
+
+      (setf initial-cost cost)
+      (setf current-cost cost)
+      (setf best-cost cost)
+      (setf best-global
+            (clone current-solution)))
+
+    ;; ===================================
+    ;; MOSTRAR INICIO
+    ;; ===================================
+
+    (unless quiet
+      (format t "~%[SOLUCION INICIAL]")
+      (format t "~%Costo: ~a~%" current-cost)
+      (pp-solution current-solution t))
+
+    ;; ===================================
+    ;; LOOP PRINCIPAL
+    ;; ===================================
+
+    (loop for iter from 1 to max-iter do
+
+      (unless quiet
+        (format t "~%===================================")
+        (format t "~%ITERACION ~a" iter)
+        (format t "~%===================================~%"))
+
+      (let* ((iter-start
+              (ivns-current-time))
+
+             (cadena
+              (ivns::filter-string))
+
+             (accepted nil)
+
+             (delta 0)
+
+             (neighbor nil)
+
+             (distance 0)
+
+             (penalty 0))
+
+        (push cadena used-strings)
+
+        (unless quiet
+          (format t "~%Cadena generada: ~a~%"
+                  cadena))
+
+        (multiple-value-bind
+              (res actions tokens)
+
+            (ivns::apply-subindices cadena)
+
+          (declare (ignore res tokens))
+
+          (let ((criterion
+                 (ivns-actions->criterion
+                  actions)))
+
+            ;; accion delta
+            (setf delta-act
+                  (delta-cvrp-action))
+
+            ;; ejecutar criterio
+            (setf neighbor
+                  (funcall criterion
+                           current-solution
+                           problem
+                           delta-act))
+
+            ;; ============================
+            ;; SI HAY VECINO
+            ;; ============================
+
+            (if neighbor
+
+                (multiple-value-bind
+                      (new-cost dist pen)
+
+                    (ivns-evaluate-solution
+                     neighbor
+                     problem
+                     penalty-factor)
+
+                  (setf distance dist)
+                  (setf penalty pen)
+
+                  (setf delta
+                        (- new-cost
+                           current-cost))
+
+                  ;; mejora
+                  (if (< delta 0)
+
+                      (progn
+
+                        (setf accepted t)
+
+                        (incf accepted-improvements)
+
+                        (setf current-solution
+                              neighbor)
+
+                        (setf current-cost
+                              new-cost)
+
+                        ;; mejor global
+                        (when (< current-cost
+                                 best-cost)
+
+                          (setf best-cost
+                                current-cost)
+
+                          (setf best-global
+                                (clone neighbor)))
+
+                        (unless quiet
+                          (format t
+                                  "~%[ITER ~3d] MEJORA | Costo: ~6d | Cadena: ~a"
+                                  iter
+                                  current-cost
+                                  cadena)
+
+                          (when (= current-cost
+                                   best-cost)
+
+                            (format t
+                                    "~%          >>> NUEVO GLOBAL: ~a"
+                                    best-cost))
+
+                          (format t "~%")
+
+                          (pp-solution
+                           current-solution
+                           t)))
+
+                      ;; no mejora
+                      (progn
+
+                        (incf rejected-moves)
+
+                        (unless quiet
+                          (format t
+                                  "~%[ITER ~3d] SIN MEJORA | Actual: ~6d | Cadena: ~a"
+                                  iter
+                                  current-cost
+                                  cadena)))))
+
+                ;; vecino nil
+                (progn
+
+                  (incf invalid-neighbors)
+
+                  (unless quiet
+                    (format t
+                            "~%[ITER ~3d] VECINO NIL | Cadena: ~a"
+                            iter
+                            cadena)))))
+
+          ;; ===================================
+          ;; GUARDAR TRACE
+          ;; ===================================
+
+          (push
+           (list
+            :iter iter
+            :string cadena
+            :accepted accepted
+            :current-cost current-cost
+            :best-cost best-cost
+            :delta delta
+            :distance distance
+            :penalty penalty
+            :time
+            (ivns-elapsed-time iter-start))
+           trace))))
+
+    ;; ===================================
+    ;; FINAL
+    ;; ===================================
+
+    (let* ((total-time
+            (ivns-elapsed-time start-time))
+
+           (gap
+            (ivns-compute-gap
+             best-cost
+             known-best)))
+
+      (format t "~%======================================")
+      (format t "~% RESULTADO FINAL")
+      (format t "~%======================================")
+
+      (format t "~%Initial cost: ~a"
+              initial-cost)
+
+      (format t "~%Best cost: ~a"
+              best-cost)
+
+      (format t "~%Final cost: ~a"
+              current-cost)
+
+      (format t "~%Iterations: ~a"
+              max-iter)
+
+      (format t "~%Accepted improvements: ~a"
+              accepted-improvements)
+
+      (format t "~%Rejected moves: ~a"
+              rejected-moves)
+
+      (format t "~%Invalid neighbors: ~a"
+              invalid-neighbors)
+
+      (format t "~%Unique strings: ~a"
+              (length
+               (remove-duplicates
+                used-strings
+                :test #'equal)))
+
+      (format t "~%Execution time: ~,4f sec"
+              total-time)
+
+      (format t "~%Gap: ~,4f~%"
+              gap)
+
+      (format t "~%======================================~%")
+
+      ;; ===================================
+      ;; RETORNO EXPERIMENTAL
+      ;; ===================================
+
+      (list
+       :algorithm :ivns
+
+       :initial-cost initial-cost
+       :best-cost best-cost
+       :final-cost current-cost
+
+       :iterations max-iter
+
+       :accepted-improvements
+       accepted-improvements
+
+       :rejected-moves
+       rejected-moves
+
+       :invalid-neighbors
+       invalid-neighbors
+
+       :execution-time total-time
+
+       :gap gap
+
+       :trace
+       (reverse trace)
+
+       :strings-used
+       (reverse used-strings)
+
+       :best-solution
+       best-global))))
+
+(defun ivns-test-to-vrp ()
+  "Prueba completa: IVNS → criterio VRP → ejecución."
+  (ivns-run))
+
+#+END_SRC
+
+
+* Archivo: ivns-runner.lisp
+
+Esta sección conecta todo el proceso.
+
+El flujo es:
+
+1. inicializar semilla;
+2. limpiar cadenas previas;
+3. generar una cadena;
+4. aplicar subíndices;
+5. mostrar:
+   - cadena generada,
+   - lista de acciones,
+   - lista de tokens.
+
+** Qué hace esta sección
+
+Este archivo no implementa nueva lógica gramatical ni nueva lógica VRP. 
+Su función es coordinar las piezas ya construidas para ofrecer un punto de ejecución sencillo. 
+En otras palabras, actúa como un orquestador del flujo mínimo del IVNS.
+
+** Función principal
+
+*** =main=
+
+Es la puerta de entrada del módulo cuando se quiere probar el proceso de generación e interpretación sin pasar todavía a la ejecución real en el VRP.
+
+Su lógica general es:
+
+1. inicializar la aleatoriedad;
+2. limpiar cadenas anteriores;
+3. generar una nueva cadena válida;
+4. interpretarla;
+5. imprimir la cadena original;
+6. imprimir las acciones asociadas;
+7. imprimir la versión tokenizada.
+
+Sirve sobre todo para depurar y entender qué está produciendo la gramática antes de conectar con el motor de búsqueda del VRP.
+
+#+BEGIN_SRC lisp :tangle ../src/ivns-runner.lisp
+(load "src/ivns-package.lisp")
+(load "src/ivns-sequence-interpreter.lisp")
+(load "src/ivns-string-generator.lisp")
+
+(in-package :ivns)
+
+(defun main ()
+  "Función principal del sistema de generación y verificación de cadenas.
+   Se encarga de inicializar el entorno, generar una cadena aleatoria
+   y procesarla para detectar ambigüedades mediante la aplicación de subíndices."
+   
+  (initialize-random-seed)
+  (clear-generated-strings)
+  
+  (let ((cadena-generada (filter-string)))
+    (format t "~%~%=== CADENA GENERADA ===")
+    (format t "~%Cadena: ~a" cadena-generada)
+    
+    (multiple-value-bind (resultado lista-strings lista-tokens) (apply-subindices cadena-generada)
+      (declare (ignore resultado))
+      (format t "~%~%=== LISTA DE ACCIONES ===")
+      (dolist (str lista-strings)
+        (format t "~%~a" str))
+      
+      (format t "~%~%=== LISTA DE TOKENS ===~%")
+      (dolist (token lista-tokens)
+        (format t "~a" token))
+      
+      t)))
+#+END_SRC
+
+
+* Cómo cargar y ejecutar
+
+Esta sección muestra cómo generar, cargar y probar los módulos asociados a la
+gramática IVNS.
+Todos los comandos se ejecutan desde la raíz del proyecto:
+
+cd ~/Escritorio/Mio/tesis/Tareas/Tarea\ mayo/vrp
+
+
+** Tanglear el archivo Org
+
+mkdir -p logs results
+
+emacs --batch vrp-suite/ivns-grammar.org -f org-babel-tangle 
+2>&1 | tee logs/tangle-ivns-grammar.log
+
+
+Este comando genera los archivos Lisp asociados a la gramática, al generador de
+cadenas, al intérprete de secuencias y a la traducción de acciones IVNS hacia
+criterios VRP.
+
+** Cargar el sistema en SBCL
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(format t "~%LOAD-OK-IVNS-GRAMMAR~%")' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/load-ivns-grammar.log
+
+
+Se espera ver:
+LOAD-OK-IVNS-GRAMMAR
+
+
+** Probar el generador de cadenas
+
+Esta prueba genera cadenas IVNS con el perfil =baseline=. Permite verificar que
+el generador produce cadenas no vacías y que calcula su longitud, complejidad y
+diagnóstico.
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :ivns)' 
+--eval '(configure-ivns-complexity-profile :baseline)' 
+--eval '(clear-generated-strings)' 
+--eval '(in-package :vrp)' 
+--eval '(loop repeat 10 do
+(multiple-value-bind (s tries rejected diag)
+(ivns-generate-new-string nil 50)
+(format t "~%s=~a | tries=~a | rejected=~a | diag=~a"
+s tries rejected diag)))' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/test-ivns-generate-new-string.log
+
+
+La salida esperada debe contener cadenas como:
+
+#+BEGIN_EXAMPLE
+s=rab | tries=... | rejected=... | diag=(...)
+s=raac | tries=... | rejected=... | diag=(...)
+s=rfg | tries=... | rejected=... | diag=(...)
+#+END_EXAMPLE
+
+
+** Probar perfiles de complejidad
+
+La gramática puede configurarse con distintos perfiles. Los principales son:
+
+- =baseline=: perfil base, más conservador;
+- =efg-medium=: permite mayor presencia de símbolos costosos;
+- =efg-high=: perfil más exploratorio y costoso.
+
+Prueba del perfil =baseline=:
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :ivns)' 
+--eval '(configure-ivns-complexity-profile :baseline)' 
+--eval '(clear-generated-strings)' 
+--eval '(format t "~%Perfil baseline configurado.~%")' 
+--eval '(loop repeat 5 do
+(format t "~%~a" (filter-string)))' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/test-profile-baseline.log
+
+
+Prueba del perfil =efg-medium=:
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :ivns)' 
+--eval '(configure-ivns-complexity-profile :efg-medium)' 
+--eval '(clear-generated-strings)' 
+--eval '(format t "~%Perfil efg-medium configurado.~%")' 
+--eval '(loop repeat 5 do
+(format t "~%~a" (filter-string)))' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/test-profile-efg-medium.log
+
+
+Prueba del perfil =efg-high=:
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :ivns)' 
+--eval '(configure-ivns-complexity-profile :efg-high)' 
+--eval '(clear-generated-strings)' 
+--eval '(format t "~%Perfil efg-high configurado.~%")' 
+--eval '(loop repeat 5 do
+(format t "~%~a" (filter-string)))' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/test-profile-efg-high.log
+
+
+** Probar diagnóstico de filtros
+
+La función =filter-string-with-diagnostics= permite saber cuántas cadenas se
+generan, cuántas resultan válidas y cuántas se rechazan.
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :ivns)' 
+--eval '(configure-ivns-complexity-profile :baseline)' 
+--eval '(clear-generated-strings)' 
+--eval '(multiple-value-bind
+(s attempts invalid-count last-reason reason-counts generated-count valid-count)
+(filter-string-with-diagnostics
+:max-attempts 50
+:max-imbalance 2
+:max-length 10
+:max-complexity 14
+:allow-expensive-patterns nil)
+(format t "~%cadena=~a" s)
+(format t "~%attempts=~a" attempts)
+(format t "~%invalid-count=~a" invalid-count)
+(format t "~%last-reason=~a" last-reason)
+(format t "~%reason-counts=~a" reason-counts)
+(format t "~%generated-count=~a" generated-count)
+(format t "~%valid-count=~a~%" valid-count))' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/test-filter-string-with-diagnostics.log
+
+
+** Probar IVNS sobre CVRP
+
+La siguiente prueba ejecuta IVNS sobre una instancia CVRP pequeña usando la
+infraestructura experimental. Sirve para comprobar que la gramática se conecta
+correctamente con los criterios de vecindad.
+
+rm -f results/summary-ivns-grammar-smoke.csv
+rm -f results/trace-ivns-grammar-smoke.csv
+
+sbcl --noinform --disable-debugger 
+--load src/experiments-vns-ivns.lisp 
+--eval '(in-package :ivns)' 
+--eval '(configure-ivns-complexity-profile :baseline)' 
+--eval '(clear-generated-strings)' 
+--eval '(in-package :vrp-experiments)' 
+--eval '(run-thesis-experiments
+:algorithms (list :ivns)
+:instances (list vrp::a-n33-k5-problem)
+:seeds (list 1 2)
+:shared-initial-solution-p nil
+:max-iter 5
+:kmax 2
+:max-no-improve 4
+:shake-max-tries 5
+:generation-max-tries 50
+:ivns-max-neighborhood-seconds 0.10
+:reset-generated-strings-on-improvement-p t
+:vnd-mode :best
+:vnd-max-rounds 3
+:vnd-max-no-improve 2
+:time-limit-seconds 30
+:summary-file "results/summary-ivns-grammar-smoke.csv"
+:trace-file "results/trace-ivns-grammar-smoke.csv")' 
+--eval '(sb-ext:quit)' 
+2>&1 | tee logs/run-ivns-grammar-smoke.log
+
+
+** Validar la prueba IVNS
+
+python3 - <<'PY'
+import csv
+from pathlib import Path
+from collections import Counter
+
+summary = Path("results/summary-ivns-grammar-smoke.csv")
+trace = Path("results/trace-ivns-grammar-smoke.csv")
+
+rows = list(csv.DictReader(summary.open(newline="", encoding="utf-8"))) if summary.exists() else []
+trace_rows = list(csv.DictReader(trace.open(newline="", encoding="utf-8"))) if trace.exists() else []
+
+print("summary existe:", summary.exists())
+print("trace existe:", trace.exists())
+print("summary rows:", len(rows))
+print("trace rows:", len(trace_rows))
+print("status:", Counter(r.get("status","") for r in rows))
+print("trace status:", Counter(r.get("status","") for r in trace_rows))
+
+def num(r, c):
+    try:
+        return float(r.get(c, 0) or 0)
+    except Exception:
+        return 0.0
+
+problems = []
+
+for r in rows:
+    if r.get("algorithm") != "ivns":
+        problems.append(("algorithm inesperado", r.get("algorithm")))
+
+    if r.get("status") != "ok":
+        problems.append(("status inesperado", r.get("run_id"), r.get("status")))
+
+    for c in [
+        "ivns_string_length_avg",
+        "ivns_complexity_avg",
+        "ivns_strings_generated_total",
+        "ivns_strings_valid_total",
+        "ivns_strings_evaluated_total",
+        "ivns_strings_selected_total",
+    ]:
+        if num(r, c) <= 0:
+            problems.append((r.get("run_id"), c, r.get(c)))
+
+print("problemas:", problems if problems else "OK")
+print("VALIDACION_IVNS_GRAMMAR:", "OK" if not problems else "REVISAR")
+PY
+
+
+** Resultado esperado
+
+La gramática se considera correctamente preparada si:
+
+1. el archivo tangletea sin errores;
+2. SBCL muestra =LOAD-OK-IVNS-GRAMMAR=;
+3. el generador produce cadenas no vacías;
+4. =filter-string-with-diagnostics= devuelve diagnóstico;
+5. la prueba IVNS genera CSV;
+6. la validación muestra =VALIDACION_IVNS_GRAMMAR: OK=.

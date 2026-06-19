@@ -1,0 +1,167 @@
+==================================================
+REPORTE DE CIERRE DE EXPERIMENTOS
+==================================================
+BEST_PROFILE = baseline
+BEST_MODE    = random
+
+==================================================
+1. EXISTENCIA DE ARCHIVOS PRINCIPALES
+==================================================
+OK - src/experiments-vns-ivns.lisp
+OK - src/ivns-experiments.lisp
+OK - src/vrp-vns.lisp
+OK - src/vrp-ivns.lisp
+OK - src/ivns-runner.lisp
+OK - src/ivns-string-generator.lisp
+OK - src/ivns-sequence-interpreter.lisp
+OK - results/oficiales-ivns-variants/summary-ivns-variants-combined.csv
+OK - results/oficiales-final/summary-main-baseline-random.csv
+OK - results/oficiales-final/trace-main-baseline-random.csv
+OK - results/oficiales-final/selected-ivns-variant.txt
+OK - logs/oficiales-final/run-main-baseline-random.log
+
+Archivos faltantes: 0
+
+==================================================
+2. VALIDACION DE VARIANTES IVNS
+==================================================
+Summary individuales encontrados: 9 / esperados: 9
+
+Archivo: summary-ivns-baseline-best.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+Archivo: summary-ivns-baseline-first.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+Archivo: summary-ivns-baseline-random.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+Archivo: summary-ivns-efg-high-best.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+Archivo: summary-ivns-efg-high-first.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+Archivo: summary-ivns-efg-high-random.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+Archivo: summary-ivns-efg-medium-best.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+Archivo: summary-ivns-efg-medium-first.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+Archivo: summary-ivns-efg-medium-random.csv
+filas: 90 / esperadas: 90
+status: {'ok': 90}
+feasible: {'true': 90}
+instancias: {'A-n33-k5': 30, 'A-n65-k9': 30, 'A-n80-k10': 30}
+
+TOTAL filas variantes IVNS: 810 / esperadas: 810
+Filas summary combinado: 810 / esperadas: 810
+
+Problemas detectados en variantes: 0
+
+==================================================
+3. RANKING GLOBAL IVNS
+==================================================
+profile,vnd_mode,rows,median_gap,mean_gap,median_time,mean_time
+baseline,random,90,141.038002,127.168470,0.386518,0.371329
+baseline,best,90,141.865418,122.256751,0.369018,0.361695
+baseline,first,90,142.451828,126.820814,0.385519,0.379085
+efg-medium,random,90,167.589439,161.453144,0.590027,0.580372
+efg-medium,first,90,167.784150,159.626361,0.610030,0.594129
+efg-medium,best,90,168.321045,158.323325,0.576028,0.573761
+efg-high,random,90,175.127616,173.399736,0.755538,0.745469
+efg-high,first,90,179.325012,173.762007,0.741036,0.744869
+efg-high,best,90,179.890259,176.188963,0.761037,0.760703
+
+Ganador calculado por menor mediana global de gap:
+BEST_PROFILE_CALCULADO = baseline
+BEST_MODE_CALCULADO    = random
+
+==================================================
+4. VARIANTE SELECCIONADA
+==================================================
+Selected IVNS variant for final comparison
+==========================================
+
+BEST_PROFILE=baseline
+BEST_MODE=random
+
+Selection criterion:
+Minimum global median gap_percent among the evaluated IVNS variants.
+
+Selected variant:
+IVNS profile = baseline
+VND mode     = random
+
+
+==================================================
+5. VALIDACION FINAL VNS VS IVNS
+==================================================
+Archivo final: results/oficiales-final/summary-main-baseline-random.csv
+Filas summary final: 180 / esperadas: 180
+status: {'ok': 180}
+feasible: {'true': 180}
+algorithm: {'vns': 90, 'ivns': 90}
+instance: {'A-n33-k5': 60, 'A-n65-k9': 60, 'A-n80-k10': 60}
+vnd_mode: {'random': 180}
+ivns_reset_strings_on_improvement: {'false': 90, 'true': 90}
+
+Conteo por instancia y algoritmo:
+('A-n33-k5', 'ivns') 30 / esperado: 30
+('A-n33-k5', 'vns') 30 / esperado: 30
+('A-n65-k9', 'ivns') 30 / esperado: 30
+('A-n65-k9', 'vns') 30 / esperado: 30
+('A-n80-k10', 'ivns') 30 / esperado: 30
+('A-n80-k10', 'vns') 30 / esperado: 30
+
+Filas con problemas: 0
+
+Resumen por instancia y algoritmo:
+instance,algorithm,rows,median_gap,mean_gap,best_gap,median_time,mean_time,best_cost_min
+A-n33-k5,ivns,30,67.170956,67.357539,43.570347,0.232071,0.231666,949.000000
+A-n33-k5,vns,30,54.084721,56.550680,29.349470,0.314590,0.311420,855.000000
+A-n65-k9,ivns,30,148.168655,150.011357,120.613289,0.328076,0.339344,2590.000000
+A-n65-k9,vns,30,136.839859,136.797275,111.925041,0.298576,0.296501,2488.000000
+A-n80-k10,ivns,30,135.592743,135.199468,113.840042,0.415068,0.421533,3770.000000
+A-n80-k10,vns,30,124.985816,127.466440,103.743622,0.301548,0.301715,3592.000000
+
+Filas trace final: 1800
+Esperadas aproximadas si max_iter=10: 1800
+
+==================================================
+6. REVISION RAPIDA DE LOGS
+==================================================
+Logs encontrados: 11
+Coincidencias graves en logs: 0
+
+==================================================
+DICTAMEN PRELIMINAR
+==================================================
+OK_CIERRE_EXPERIMENTAL: parece que ya se corrio todo lo necesario.

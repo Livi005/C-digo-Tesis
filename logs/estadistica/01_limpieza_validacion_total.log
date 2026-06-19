@@ -1,0 +1,11 @@
+PROJECT_ROOT = /home/olivia3/Proyectos Uni/vrp
+CLEAN_DIR = /home/olivia3/Proyectos Uni/vrp/results/analysis_final/clean
+TABLES_DIR = /home/olivia3/Proyectos Uni/vrp/results/analysis_final/tables
+official_variants summary= 810 trace= 8100
+official_vns_ivns summary= 180 trace= 1800
+a_exploratory summary= 3240 trace= 32400
+f_pilot summary= 30 trace= 300
+f_high summary= 75 trace= 750
+confirmatory_a summary= 180 trace= 1800
+confirmatory_f summary= 60 trace= 600
+Validación completada

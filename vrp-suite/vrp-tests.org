@@ -1,0 +1,97 @@
+#+TITLE: VRP solver environment
+#+AUTHOR: Fernando Rodriguez Flores
+#+DATE 2019-02-04
+#+TODO: TODO BROKEN | DONE
+
+* Description
+  In this file I'm going to add some tests an runs.
+
+
+* Testing bad solutions with no improvements
+  These are some bad solutions that when explored with some neighboorhood criteria do not return a better neighboor.
+
+** a-n33-k6
+
+*** first example
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp 
+    (let* ((p1 a-n32-k5-problem))
+     (with-basic-cvrp-solution (s1 ((26 6 28 11 24)
+                                    (21 17 18)
+                                    (22)
+                                    (10 19)
+                                    (5)
+                                    (12 4 29)
+                                    (25)
+                                    (1 7 3 23 9)
+                                    (16)
+                                    (2 27)
+                                    (15 14)
+                                    (13 20)
+                                    (8)
+                                    (30)
+                                    (31))
+                                   p1)
+       (let* (
+              (best-solution-exhaustive nil)
+              (action (delta-cvrp-action*))
+              (results nil)
+              (max-iterations 200)
+              (cvrp-action (basic-cvrp-action))
+              (criterion (make-neighborhood-criterion
+                          `((SELECT-ROUTE ROUTE1)
+                            (SELECT-CLIENT CLIENT1 FROM ROUTE1)
+                            (SELECT-ROUTE ROUTE2)
+                            (SELECT-SUBROUTE SUBROUTE1 FROM ROUTE2)
+                            (INSERT-SUBROUTE SUBROUTE1 INTO ROUTE2)
+                            (INSERT-CLIENT CLIENT1 INTO ROUTE1))
+                          ,*exhaustive-search-strategy*
+                          ,*best-improvement*))
+              )
+
+
+         (bformat t "Testing DNS with a-n32-k5-problem")
+
+         ;; first we compute the cost of the solution
+         (simulate-solution s1 p1 cvrp-action)
+         (setf (cost s1) (get-cost-from-action cvrp-action))
+
+         (format t "Original solution (with cost ~a):~%"
+                 (cost s1))
+         (pp-solution s1 t)
+
+         (progn
+           (setf results (descent-neighborhood-search 
+                          p1 s1
+                          criterion 
+                          :max-iter max-iterations
+                          :action action))
+
+           (format t "finished vnd.~%")
+
+
+           (format t "Iterations: ~a. Optimum found ~a.~%"
+                   (second results) (third results))
+
+           (setf best-solution-exhaustive (first results))
+
+           (if best-solution-exhaustive
+               (then
+                 (format t "Best value through: ~a~%"
+                         (cost best-solution-exhaustive))
+                 (format t "Best neighbor:~%")
+                 (pp-solution best-solution-exhaustive t)
+
+                 (simulate-solution best-solution-exhaustive p1 cvrp-action)
+
+                 (setf best-solution-exhaustive (first results))
+                 (format t "Best value through Yoel's: ~a~%"
+                         (get-cost-from-action cvrp-action))
+                 )
+
+               (else
+                 (format t "Initial solution was optimum!~%"))))
+
+
+         )))
+    #+END_SRC
+

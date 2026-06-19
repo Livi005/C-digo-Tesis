@@ -1,0 +1,4393 @@
+Loading src/vrp-package.lisp...
+Loading src/vrp-utilities.lisp...
+Loading src/vrp-random-number-generation.lisp...
+Loading src/vrp-generic-functions.lisp...
+Loading src/vrp-unit-testing.lisp...
+Loading src/vrp-class-definition-macro.lisp...
+Loading src/vrp-classes.lisp...
+Loading src/vrp-moments.lisp...
+Loading src/vrp-data.lisp...
+Loading src/vrp-neighborhood-exploration-macros.lisp...
+Loading src/vrp-neighborhood-simulation.lisp...
+Loading src/vrp-neighborhood-operations.lisp...
+Loading src/vrp-delta-cost.lisp...
+Loading src/vrp-search-strategies.lisp...
+Loading src/vrp-criteria.lisp...
+Loading src/vrp-algorithms.lisp...
+
+; file: /home/olivia3/Proyectos Uni/vrp/src/vrp-algorithms.lisp
+; in: DEFUN VNS-SHAKE
+;     (VRP::NEIGHBOORHOODS-USED-IN-VNS 0)
+; 
+; caught STYLE-WARNING:
+;   The variable NEIGHBOORHOODS-USED-IN-VNS is assigned but never read.
+
+;     (VRP::OPTIMUM-FOUND-IN-VNS NIL)
+; 
+; caught STYLE-WARNING:
+;   The variable OPTIMUM-FOUND-IN-VNS is assigned but never read.
+; 
+; compilation unit finished
+;   caught 2 STYLE-WARNING conditions
+
+; file: /home/olivia3/Proyectos Uni/vrp/src/vrp-algorithms.lisp
+; in: DEFUN VNS-SHAKE-SMART
+;     (VRP::NEIGHBOORHOODS-USED-IN-VNS 0)
+; 
+; caught STYLE-WARNING:
+;   The variable NEIGHBOORHOODS-USED-IN-VNS is assigned but never read.
+
+;     (VRP::OPTIMUM-FOUND-IN-VNS NIL)
+; 
+; caught STYLE-WARNING:
+;   The variable OPTIMUM-FOUND-IN-VNS is assigned but never read.
+; 
+; compilation unit finished
+;   caught 2 STYLE-WARNING conditions
+
+; file: /home/olivia3/Proyectos Uni/vrp/src/vrp-algorithms.lisp
+; in: DEFUN VNS-SHAKE-SMART-NO-OUTPUT
+;     (VRP::NEIGHBOORHOODS-USED-IN-VNS 0)
+; 
+; caught STYLE-WARNING:
+;   The variable NEIGHBOORHOODS-USED-IN-VNS is assigned but never read.
+
+;     (VRP::OPTIMUM-FOUND-IN-VNS NIL)
+; 
+; caught STYLE-WARNING:
+;   The variable OPTIMUM-FOUND-IN-VNS is assigned but never read.
+; 
+; compilation unit finished
+;   caught 2 STYLE-WARNING conditions
+Loading src/vrp-initial-routes.lisp...
+Loading data/vrp-data-a-n32-k5.lisp...
+Loading data/vrp-data-a-n33-k5.lisp...
+Loading data/vrp-data-a-n33-k6.lisp...
+Loading data/vrp-data-a-n37-k5.lisp...
+Loading data/vrp-data-a-n65-k9.lisp...
+Loading data/vrp-data-a-n80-k10.lisp...
+Loading data/vrp-data-f-n135-k7.lisp...
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 31
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1690 | best=1690 | delta=-73 | k=1 | accepted=T
+
+[ITER 2] cost=1504 | best=1504 | delta=-186 | k=1 | accepted=T
+
+[ITER 3] cost=1456 | best=1456 | delta=-48 | k=1 | accepted=T
+
+[ITER 4] cost=1276 | best=1276 | delta=-180 | k=1 | accepted=T
+
+[ITER 5] cost=1248 | best=1248 | delta=-28 | k=1 | accepted=T
+
+[ITER 6] cost=1212 | best=1212 | delta=-36 | k=1 | accepted=T
+
+[ITER 7] cost=1163 | best=1163 | delta=-49 | k=1 | accepted=T
+
+[ITER 8] cost=1150 | best=1150 | delta=-13 | k=1 | accepted=T
+
+[ITER 9] cost=1143 | best=1143 | delta=-7 | k=1 | accepted=T
+
+[ITER 10] cost=1113 | best=1113 | delta=-30 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1113
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4150 sec
+Gap: 68.3812
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 31
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 32
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1570 | best=1570 | delta=-173 | k=1 | accepted=T
+
+[ITER 2] cost=1443 | best=1443 | delta=-127 | k=1 | accepted=T
+
+[ITER 3] cost=1405 | best=1405 | delta=-38 | k=1 | accepted=T
+
+[ITER 4] cost=1376 | best=1376 | delta=-29 | k=1 | accepted=T
+
+[ITER 5] cost=1304 | best=1304 | delta=-72 | k=1 | accepted=T
+
+[ITER 6] cost=1190 | best=1190 | delta=-114 | k=1 | accepted=T
+
+[ITER 7] cost=1130 | best=1130 | delta=-60 | k=1 | accepted=T
+
+[ITER 8] cost=1092 | best=1092 | delta=-38 | k=1 | accepted=T
+
+[ITER 9] cost=1047 | best=1047 | delta=-45 | k=1 | accepted=T
+
+[ITER 10] cost=992 | best=992 | delta=-55 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 992
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3760 sec
+Gap: 50.0756
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 32
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 33
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1862 | best=1862 | delta=-52 | k=1 | accepted=T
+
+[ITER 2] cost=1777 | best=1777 | delta=-85 | k=1 | accepted=T
+
+[ITER 3] cost=1650 | best=1650 | delta=-127 | k=1 | accepted=T
+
+[ITER 4] cost=1557 | best=1557 | delta=-93 | k=1 | accepted=T
+
+[ITER 5] cost=1459 | best=1459 | delta=-98 | k=1 | accepted=T
+
+[ITER 6] cost=1376 | best=1376 | delta=-83 | k=1 | accepted=T
+
+[ITER 7] cost=1287 | best=1287 | delta=-89 | k=1 | accepted=T
+
+[ITER 8] cost=1185 | best=1185 | delta=-102 | k=1 | accepted=T
+
+[ITER 9] cost=1179 | best=1179 | delta=-6 | k=1 | accepted=T
+
+[ITER 10] cost=1110 | best=1110 | delta=-69 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1110
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4400 sec
+Gap: 67.9274
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 33
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 34
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1523 | best=1523 | delta=-135 | k=1 | accepted=T
+
+[ITER 2] cost=1476 | best=1476 | delta=-47 | k=1 | accepted=T
+
+[ITER 3] cost=1414 | best=1414 | delta=-62 | k=1 | accepted=T
+
+[ITER 4] cost=1273 | best=1273 | delta=-141 | k=1 | accepted=T
+
+[ITER 5] cost=1139 | best=1139 | delta=-134 | k=1 | accepted=T
+
+[ITER 6] cost=1103 | best=1103 | delta=-36 | k=1 | accepted=T
+
+[ITER 7] cost=1076 | best=1076 | delta=-27 | k=1 | accepted=T
+
+[ITER 8] cost=1065 | best=1065 | delta=-11 | k=1 | accepted=T
+
+[ITER 9] cost=1057 | best=1057 | delta=-8 | k=1 | accepted=T
+
+[ITER 10] cost=1045 | best=1045 | delta=-12 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1045
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3940 sec
+Gap: 58.0938
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 34
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 35
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1691 | best=1691 | delta=-100 | k=1 | accepted=T
+
+[ITER 2] cost=1566 | best=1566 | delta=-125 | k=1 | accepted=T
+
+[ITER 3] cost=1518 | best=1518 | delta=-48 | k=1 | accepted=T
+
+[ITER 4] cost=1386 | best=1386 | delta=-132 | k=1 | accepted=T
+
+[ITER 5] cost=1271 | best=1271 | delta=-115 | k=1 | accepted=T
+
+[ITER 6] cost=1238 | best=1238 | delta=-33 | k=1 | accepted=T
+
+[ITER 7] cost=1221 | best=1221 | delta=-17 | k=1 | accepted=T
+
+[ITER 8] cost=1112 | best=1112 | delta=-109 | k=1 | accepted=T
+
+[ITER 9] cost=1038 | best=1038 | delta=-74 | k=1 | accepted=T
+
+[ITER 10] cost=996 | best=996 | delta=-42 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 996
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4020 sec
+Gap: 50.6808
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 35
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 36
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1851 | best=1851 | delta=-117 | k=1 | accepted=T
+
+[ITER 2] cost=1798 | best=1798 | delta=-53 | k=1 | accepted=T
+
+[ITER 3] cost=1684 | best=1684 | delta=-114 | k=1 | accepted=T
+
+[ITER 4] cost=1655 | best=1655 | delta=-29 | k=1 | accepted=T
+
+[ITER 5] cost=1598 | best=1598 | delta=-57 | k=1 | accepted=T
+
+[ITER 6] cost=1557 | best=1557 | delta=-41 | k=1 | accepted=T
+
+[ITER 7] cost=1497 | best=1497 | delta=-60 | k=1 | accepted=T
+
+[ITER 8] cost=1454 | best=1454 | delta=-43 | k=1 | accepted=T
+
+[ITER 9] cost=1425 | best=1425 | delta=-29 | k=1 | accepted=T
+
+[ITER 10] cost=1364 | best=1364 | delta=-61 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1364
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3720 sec
+Gap: 106.3540
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 36
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 37
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1640 | best=1640 | delta=-126 | k=1 | accepted=T
+
+[ITER 2] cost=1585 | best=1585 | delta=-55 | k=1 | accepted=T
+
+[ITER 3] cost=1507 | best=1507 | delta=-78 | k=1 | accepted=T
+
+[ITER 4] cost=1470 | best=1470 | delta=-37 | k=1 | accepted=T
+
+[ITER 5] cost=1409 | best=1409 | delta=-61 | k=1 | accepted=T
+
+[ITER 6] cost=1345 | best=1345 | delta=-64 | k=1 | accepted=T
+
+[ITER 7] cost=1245 | best=1245 | delta=-100 | k=1 | accepted=T
+
+[ITER 8] cost=1172 | best=1172 | delta=-73 | k=1 | accepted=T
+
+[ITER 9] cost=1117 | best=1117 | delta=-55 | k=1 | accepted=T
+
+[ITER 10] cost=1104 | best=1104 | delta=-13 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1104
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3500 sec
+Gap: 67.0197
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 37
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 38
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1790 | best=1790 | delta=-134 | k=1 | accepted=T
+
+[ITER 2] cost=1754 | best=1754 | delta=-36 | k=1 | accepted=T
+
+[ITER 3] cost=1636 | best=1636 | delta=-118 | k=1 | accepted=T
+
+[ITER 4] cost=1591 | best=1591 | delta=-45 | k=1 | accepted=T
+
+[ITER 5] cost=1490 | best=1490 | delta=-101 | k=1 | accepted=T
+
+[ITER 6] cost=1454 | best=1454 | delta=-36 | k=1 | accepted=T
+
+[ITER 7] cost=1397 | best=1397 | delta=-57 | k=1 | accepted=T
+
+[ITER 8] cost=1322 | best=1322 | delta=-75 | k=1 | accepted=T
+
+[ITER 9] cost=1265 | best=1265 | delta=-57 | k=1 | accepted=T
+
+[ITER 10] cost=1121 | best=1121 | delta=-144 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1121
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3350 sec
+Gap: 69.5915
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 38
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 39
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1558 | best=1558 | delta=-97 | k=1 | accepted=T
+
+[ITER 2] cost=1475 | best=1475 | delta=-83 | k=1 | accepted=T
+
+[ITER 3] cost=1384 | best=1384 | delta=-91 | k=1 | accepted=T
+
+[ITER 4] cost=1361 | best=1361 | delta=-23 | k=1 | accepted=T
+
+[ITER 5] cost=1315 | best=1315 | delta=-46 | k=1 | accepted=T
+
+[ITER 6] cost=1272 | best=1272 | delta=-43 | k=1 | accepted=T
+
+[ITER 7] cost=1237 | best=1237 | delta=-35 | k=1 | accepted=T
+
+[ITER 8] cost=1186 | best=1186 | delta=-51 | k=1 | accepted=T
+
+[ITER 9] cost=1136 | best=1136 | delta=-50 | k=1 | accepted=T
+
+[ITER 10] cost=1093 | best=1093 | delta=-43 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1093
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3820 sec
+Gap: 65.3555
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 39
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 40
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1711 | best=1711 | delta=-119 | k=1 | accepted=T
+
+[ITER 2] cost=1593 | best=1593 | delta=-118 | k=1 | accepted=T
+
+[ITER 3] cost=1530 | best=1530 | delta=-63 | k=1 | accepted=T
+
+[ITER 4] cost=1413 | best=1413 | delta=-117 | k=1 | accepted=T
+
+[ITER 5] cost=1332 | best=1332 | delta=-81 | k=1 | accepted=T
+
+[ITER 6] cost=1315 | best=1315 | delta=-17 | k=1 | accepted=T
+
+[ITER 7] cost=1210 | best=1210 | delta=-105 | k=1 | accepted=T
+
+[ITER 8] cost=1142 | best=1142 | delta=-68 | k=1 | accepted=T
+
+[ITER 9] cost=1067 | best=1067 | delta=-75 | k=1 | accepted=T
+
+[ITER 10] cost=999 | best=999 | delta=-68 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 999
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4080 sec
+Gap: 51.1346
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 40
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 41
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1457 | best=1457 | delta=-127 | k=1 | accepted=T
+
+[ITER 2] cost=1414 | best=1414 | delta=-43 | k=1 | accepted=T
+
+[ITER 3] cost=1364 | best=1364 | delta=-50 | k=1 | accepted=T
+
+[ITER 4] cost=1336 | best=1336 | delta=-28 | k=1 | accepted=T
+
+[ITER 5] cost=1292 | best=1292 | delta=-44 | k=1 | accepted=T
+
+[ITER 6] cost=1219 | best=1219 | delta=-73 | k=1 | accepted=T
+
+[ITER 7] cost=1187 | best=1187 | delta=-32 | k=1 | accepted=T
+
+[ITER 8] cost=1146 | best=1146 | delta=-41 | k=1 | accepted=T
+
+[ITER 9] cost=1097 | best=1097 | delta=-49 | k=1 | accepted=T
+
+[ITER 10] cost=1009 | best=1009 | delta=-88 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1009
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4070 sec
+Gap: 52.6475
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 41
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 42
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1859 | best=1859 | delta=-149 | k=1 | accepted=T
+
+[ITER 2] cost=1821 | best=1821 | delta=-38 | k=1 | accepted=T
+
+[ITER 3] cost=1675 | best=1675 | delta=-146 | k=1 | accepted=T
+
+[ITER 4] cost=1594 | best=1594 | delta=-81 | k=1 | accepted=T
+
+[ITER 5] cost=1454 | best=1454 | delta=-140 | k=1 | accepted=T
+
+[ITER 6] cost=1424 | best=1424 | delta=-30 | k=1 | accepted=T
+
+[ITER 7] cost=1398 | best=1398 | delta=-26 | k=1 | accepted=T
+
+[ITER 8] cost=1370 | best=1370 | delta=-28 | k=1 | accepted=T
+
+[ITER 9] cost=1317 | best=1317 | delta=-53 | k=1 | accepted=T
+
+[ITER 10] cost=1227 | best=1227 | delta=-90 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1227
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4060 sec
+Gap: 85.6278
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 42
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 43
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1648 | best=1648 | delta=-25 | k=1 | accepted=T
+
+[ITER 2] cost=1532 | best=1532 | delta=-116 | k=1 | accepted=T
+
+[ITER 3] cost=1407 | best=1407 | delta=-125 | k=1 | accepted=T
+
+[ITER 4] cost=1342 | best=1342 | delta=-65 | k=1 | accepted=T
+
+[ITER 5] cost=1232 | best=1232 | delta=-110 | k=1 | accepted=T
+
+[ITER 6] cost=1152 | best=1152 | delta=-80 | k=1 | accepted=T
+
+[ITER 7] cost=1105 | best=1105 | delta=-47 | k=1 | accepted=T
+
+[ITER 8] cost=1038 | best=1038 | delta=-67 | k=1 | accepted=T
+
+[ITER 9] cost=982 | best=982 | delta=-56 | k=1 | accepted=T
+
+[ITER 10] cost=975 | best=975 | delta=-7 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 975
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4000 sec
+Gap: 47.5038
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 43
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 44
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1372 | best=1372 | delta=-53 | k=1 | accepted=T
+
+[ITER 2] cost=1311 | best=1311 | delta=-61 | k=1 | accepted=T
+
+[ITER 3] cost=1238 | best=1238 | delta=-73 | k=1 | accepted=T
+
+[ITER 4] cost=1163 | best=1163 | delta=-75 | k=1 | accepted=T
+
+[ITER 5] cost=1145 | best=1145 | delta=-18 | k=1 | accepted=T
+
+[ITER 6] cost=1102 | best=1102 | delta=-43 | k=1 | accepted=T
+
+[ITER 7] cost=1078 | best=1078 | delta=-24 | k=1 | accepted=T
+
+[ITER 8] cost=1017 | best=1017 | delta=-61 | k=1 | accepted=T
+
+[ITER 9] cost=1000 | best=1000 | delta=-17 | k=1 | accepted=T
+
+[ITER 10] cost=962 | best=962 | delta=-38 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 962
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3950 sec
+Gap: 45.5371
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 44
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 45
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1635 | best=1635 | delta=-27 | k=1 | accepted=T
+
+[ITER 2] cost=1552 | best=1552 | delta=-83 | k=1 | accepted=T
+
+[ITER 3] cost=1507 | best=1507 | delta=-45 | k=1 | accepted=T
+
+[ITER 4] cost=1424 | best=1424 | delta=-83 | k=1 | accepted=T
+
+[ITER 5] cost=1340 | best=1340 | delta=-84 | k=1 | accepted=T
+
+[ITER 6] cost=1301 | best=1301 | delta=-39 | k=1 | accepted=T
+
+[ITER 7] cost=1242 | best=1242 | delta=-59 | k=1 | accepted=T
+
+[ITER 8] cost=1207 | best=1207 | delta=-35 | k=1 | accepted=T
+
+[ITER 9] cost=1146 | best=1146 | delta=-61 | k=1 | accepted=T
+
+[ITER 10] cost=1121 | best=1121 | delta=-25 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1121
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3740 sec
+Gap: 69.5915
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 45
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 46
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1918 | best=1918 | delta=-56 | k=1 | accepted=T
+
+[ITER 2] cost=1875 | best=1875 | delta=-43 | k=1 | accepted=T
+
+[ITER 3] cost=1708 | best=1708 | delta=-167 | k=1 | accepted=T
+
+[ITER 4] cost=1640 | best=1640 | delta=-68 | k=1 | accepted=T
+
+[ITER 5] cost=1559 | best=1559 | delta=-81 | k=1 | accepted=T
+
+[ITER 6] cost=1452 | best=1452 | delta=-107 | k=1 | accepted=T
+
+[ITER 7] cost=1390 | best=1390 | delta=-62 | k=1 | accepted=T
+
+[ITER 8] cost=1344 | best=1344 | delta=-46 | k=1 | accepted=T
+
+[ITER 9] cost=1304 | best=1304 | delta=-40 | k=1 | accepted=T
+
+[ITER 10] cost=1252 | best=1252 | delta=-52 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1252
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3820 sec
+Gap: 89.4100
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 46
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 47
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1800 | best=1800 | delta=-76 | k=1 | accepted=T
+
+[ITER 2] cost=1768 | best=1768 | delta=-32 | k=1 | accepted=T
+
+[ITER 3] cost=1690 | best=1690 | delta=-78 | k=1 | accepted=T
+
+[ITER 4] cost=1632 | best=1632 | delta=-58 | k=1 | accepted=T
+
+[ITER 5] cost=1591 | best=1591 | delta=-41 | k=1 | accepted=T
+
+[ITER 6] cost=1541 | best=1541 | delta=-50 | k=1 | accepted=T
+
+[ITER 7] cost=1428 | best=1428 | delta=-113 | k=1 | accepted=T
+
+[ITER 8] cost=1350 | best=1350 | delta=-78 | k=1 | accepted=T
+
+[ITER 9] cost=1260 | best=1260 | delta=-90 | k=1 | accepted=T
+
+[ITER 10] cost=1229 | best=1229 | delta=-31 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1229
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3370 sec
+Gap: 85.9304
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 47
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 48
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1844 | best=1844 | delta=-97 | k=1 | accepted=T
+
+[ITER 2] cost=1784 | best=1784 | delta=-60 | k=1 | accepted=T
+
+[ITER 3] cost=1765 | best=1765 | delta=-19 | k=1 | accepted=T
+
+[ITER 4] cost=1677 | best=1677 | delta=-88 | k=1 | accepted=T
+
+[ITER 5] cost=1601 | best=1601 | delta=-76 | k=1 | accepted=T
+
+[ITER 6] cost=1553 | best=1553 | delta=-48 | k=1 | accepted=T
+
+[ITER 7] cost=1508 | best=1508 | delta=-45 | k=1 | accepted=T
+
+[ITER 8] cost=1416 | best=1416 | delta=-92 | k=1 | accepted=T
+
+[ITER 9] cost=1345 | best=1345 | delta=-71 | k=1 | accepted=T
+
+[ITER 10] cost=1297 | best=1297 | delta=-48 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1297
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4200 sec
+Gap: 96.2178
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 48
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 49
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1571 | best=1571 | delta=-202 | k=1 | accepted=T
+
+[ITER 2] cost=1501 | best=1501 | delta=-70 | k=1 | accepted=T
+
+[ITER 3] cost=1430 | best=1430 | delta=-71 | k=1 | accepted=T
+
+[ITER 4] cost=1392 | best=1392 | delta=-38 | k=1 | accepted=T
+
+[ITER 5] cost=1360 | best=1360 | delta=-32 | k=1 | accepted=T
+
+[ITER 6] cost=1340 | best=1340 | delta=-20 | k=1 | accepted=T
+
+[ITER 7] cost=1216 | best=1216 | delta=-124 | k=1 | accepted=T
+
+[ITER 8] cost=1135 | best=1135 | delta=-81 | k=1 | accepted=T
+
+[ITER 9] cost=1102 | best=1102 | delta=-33 | k=1 | accepted=T
+
+[ITER 10] cost=1077 | best=1077 | delta=-25 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1077
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4150 sec
+Gap: 62.9349
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 49
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 50
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1591 | best=1591 | delta=-139 | k=1 | accepted=T
+
+[ITER 2] cost=1476 | best=1476 | delta=-115 | k=1 | accepted=T
+
+[ITER 3] cost=1460 | best=1460 | delta=-16 | k=1 | accepted=T
+
+[ITER 4] cost=1413 | best=1413 | delta=-47 | k=1 | accepted=T
+
+[ITER 5] cost=1388 | best=1388 | delta=-25 | k=1 | accepted=T
+
+[ITER 6] cost=1334 | best=1334 | delta=-54 | k=1 | accepted=T
+
+[ITER 7] cost=1314 | best=1314 | delta=-20 | k=1 | accepted=T
+
+[ITER 8] cost=1233 | best=1233 | delta=-81 | k=1 | accepted=T
+
+[ITER 9] cost=1212 | best=1212 | delta=-21 | k=1 | accepted=T
+
+[ITER 10] cost=1185 | best=1185 | delta=-27 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1185
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3570 sec
+Gap: 79.2738
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 50
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 51
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1751 | best=1751 | delta=-31 | k=1 | accepted=T
+
+[ITER 2] cost=1682 | best=1682 | delta=-69 | k=1 | accepted=T
+
+[ITER 3] cost=1657 | best=1657 | delta=-25 | k=1 | accepted=T
+
+[ITER 4] cost=1571 | best=1571 | delta=-86 | k=1 | accepted=T
+
+[ITER 5] cost=1543 | best=1543 | delta=-28 | k=1 | accepted=T
+
+[ITER 6] cost=1462 | best=1462 | delta=-81 | k=1 | accepted=T
+
+[ITER 7] cost=1445 | best=1445 | delta=-17 | k=1 | accepted=T
+
+[ITER 8] cost=1370 | best=1370 | delta=-75 | k=1 | accepted=T
+
+[ITER 9] cost=1296 | best=1296 | delta=-74 | k=1 | accepted=T
+
+[ITER 10] cost=1251 | best=1251 | delta=-45 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1251
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3670 sec
+Gap: 89.2587
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 51
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 52
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1665 | best=1665 | delta=-119 | k=1 | accepted=T
+
+[ITER 2] cost=1614 | best=1614 | delta=-51 | k=1 | accepted=T
+
+[ITER 3] cost=1541 | best=1541 | delta=-73 | k=1 | accepted=T
+
+[ITER 4] cost=1455 | best=1455 | delta=-86 | k=1 | accepted=T
+
+[ITER 5] cost=1416 | best=1416 | delta=-39 | k=1 | accepted=T
+
+[ITER 6] cost=1254 | best=1254 | delta=-162 | k=1 | accepted=T
+
+[ITER 7] cost=1228 | best=1228 | delta=-26 | k=1 | accepted=T
+
+[ITER 8] cost=1213 | best=1213 | delta=-15 | k=1 | accepted=T
+
+[ITER 9] cost=1177 | best=1177 | delta=-36 | k=1 | accepted=T
+
+[ITER 10] cost=1144 | best=1144 | delta=-33 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1144
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3730 sec
+Gap: 73.0711
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 52
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 53
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1676 | best=1676 | delta=-123 | k=1 | accepted=T
+
+[ITER 2] cost=1645 | best=1645 | delta=-31 | k=1 | accepted=T
+
+[ITER 3] cost=1611 | best=1611 | delta=-34 | k=1 | accepted=T
+
+[ITER 4] cost=1505 | best=1505 | delta=-106 | k=1 | accepted=T
+
+[ITER 5] cost=1455 | best=1455 | delta=-50 | k=1 | accepted=T
+
+[ITER 6] cost=1363 | best=1363 | delta=-92 | k=1 | accepted=T
+
+[ITER 7] cost=1298 | best=1298 | delta=-65 | k=1 | accepted=T
+
+[ITER 8] cost=1192 | best=1192 | delta=-106 | k=1 | accepted=T
+
+[ITER 9] cost=1132 | best=1132 | delta=-60 | k=1 | accepted=T
+
+[ITER 10] cost=1101 | best=1101 | delta=-31 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1101
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3680 sec
+Gap: 66.5658
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 53
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 54
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1800 | best=1800 | delta=-128 | k=1 | accepted=T
+
+[ITER 2] cost=1687 | best=1687 | delta=-113 | k=1 | accepted=T
+
+[ITER 3] cost=1590 | best=1590 | delta=-97 | k=1 | accepted=T
+
+[ITER 4] cost=1470 | best=1470 | delta=-120 | k=1 | accepted=T
+
+[ITER 5] cost=1441 | best=1441 | delta=-29 | k=1 | accepted=T
+
+[ITER 6] cost=1402 | best=1402 | delta=-39 | k=1 | accepted=T
+
+[ITER 7] cost=1347 | best=1347 | delta=-55 | k=1 | accepted=T
+
+[ITER 8] cost=1271 | best=1271 | delta=-76 | k=1 | accepted=T
+
+[ITER 9] cost=1167 | best=1167 | delta=-104 | k=1 | accepted=T
+
+[ITER 10] cost=1047 | best=1047 | delta=-120 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1047
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3680 sec
+Gap: 58.3964
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 54
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 55
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1831 | best=1831 | delta=-158 | k=1 | accepted=T
+
+[ITER 2] cost=1725 | best=1725 | delta=-106 | k=1 | accepted=T
+
+[ITER 3] cost=1674 | best=1674 | delta=-51 | k=1 | accepted=T
+
+[ITER 4] cost=1621 | best=1621 | delta=-53 | k=1 | accepted=T
+
+[ITER 5] cost=1472 | best=1472 | delta=-149 | k=1 | accepted=T
+
+[ITER 6] cost=1439 | best=1439 | delta=-33 | k=1 | accepted=T
+
+[ITER 7] cost=1360 | best=1360 | delta=-79 | k=1 | accepted=T
+
+[ITER 8] cost=1316 | best=1316 | delta=-44 | k=1 | accepted=T
+
+[ITER 9] cost=1205 | best=1205 | delta=-111 | k=1 | accepted=T
+
+[ITER 10] cost=1145 | best=1145 | delta=-60 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1145
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3690 sec
+Gap: 73.2224
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 55
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 56
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1662 | best=1662 | delta=-74 | k=1 | accepted=T
+
+[ITER 2] cost=1583 | best=1583 | delta=-79 | k=1 | accepted=T
+
+[ITER 3] cost=1533 | best=1533 | delta=-50 | k=1 | accepted=T
+
+[ITER 4] cost=1440 | best=1440 | delta=-93 | k=1 | accepted=T
+
+[ITER 5] cost=1344 | best=1344 | delta=-96 | k=1 | accepted=T
+
+[ITER 6] cost=1270 | best=1270 | delta=-74 | k=1 | accepted=T
+
+[ITER 7] cost=1170 | best=1170 | delta=-100 | k=1 | accepted=T
+
+[ITER 8] cost=1152 | best=1152 | delta=-18 | k=1 | accepted=T
+
+[ITER 9] cost=1136 | best=1136 | delta=-16 | k=1 | accepted=T
+
+[ITER 10] cost=1062 | best=1062 | delta=-74 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1062
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3850 sec
+Gap: 60.6657
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 56
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 57
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1683 | best=1683 | delta=-27 | k=1 | accepted=T
+
+[ITER 2] cost=1647 | best=1647 | delta=-36 | k=1 | accepted=T
+
+[ITER 3] cost=1580 | best=1580 | delta=-67 | k=1 | accepted=T
+
+[ITER 4] cost=1464 | best=1464 | delta=-116 | k=1 | accepted=T
+
+[ITER 5] cost=1420 | best=1420 | delta=-44 | k=1 | accepted=T
+
+[ITER 6] cost=1358 | best=1358 | delta=-62 | k=1 | accepted=T
+
+[ITER 7] cost=1306 | best=1306 | delta=-52 | k=1 | accepted=T
+
+[ITER 8] cost=1252 | best=1252 | delta=-54 | k=1 | accepted=T
+
+[ITER 9] cost=1183 | best=1183 | delta=-69 | k=1 | accepted=T
+
+[ITER 10] cost=1143 | best=1143 | delta=-40 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1143
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3710 sec
+Gap: 72.9198
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 57
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 58
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1706 | best=1706 | delta=-66 | k=1 | accepted=T
+
+[ITER 2] cost=1646 | best=1646 | delta=-60 | k=1 | accepted=T
+
+[ITER 3] cost=1534 | best=1534 | delta=-112 | k=1 | accepted=T
+
+[ITER 4] cost=1443 | best=1443 | delta=-91 | k=1 | accepted=T
+
+[ITER 5] cost=1374 | best=1374 | delta=-69 | k=1 | accepted=T
+
+[ITER 6] cost=1285 | best=1285 | delta=-89 | k=1 | accepted=T
+
+[ITER 7] cost=1164 | best=1164 | delta=-121 | k=1 | accepted=T
+
+[ITER 8] cost=1099 | best=1099 | delta=-65 | k=1 | accepted=T
+
+[ITER 9] cost=1043 | best=1043 | delta=-56 | k=1 | accepted=T
+
+[ITER 10] cost=1032 | best=1032 | delta=-11 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1032
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3680 sec
+Gap: 56.1271
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 58
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 59
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1732 | best=1732 | delta=-133 | k=1 | accepted=T
+
+[ITER 2] cost=1622 | best=1622 | delta=-110 | k=1 | accepted=T
+
+[ITER 3] cost=1558 | best=1558 | delta=-64 | k=1 | accepted=T
+
+[ITER 4] cost=1380 | best=1380 | delta=-178 | k=1 | accepted=T
+
+[ITER 5] cost=1331 | best=1331 | delta=-49 | k=1 | accepted=T
+
+[ITER 6] cost=1266 | best=1266 | delta=-65 | k=1 | accepted=T
+
+[ITER 7] cost=1228 | best=1228 | delta=-38 | k=1 | accepted=T
+
+[ITER 8] cost=1184 | best=1184 | delta=-44 | k=1 | accepted=T
+
+[ITER 9] cost=1142 | best=1142 | delta=-42 | k=1 | accepted=T
+
+[ITER 10] cost=1100 | best=1100 | delta=-42 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 1100
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3680 sec
+Gap: 66.4145
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 59
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 60
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=1466 | best=1466 | delta=-67 | k=1 | accepted=T
+
+[ITER 2] cost=1340 | best=1340 | delta=-126 | k=1 | accepted=T
+
+[ITER 3] cost=1298 | best=1298 | delta=-42 | k=1 | accepted=T
+
+[ITER 4] cost=1196 | best=1196 | delta=-102 | k=1 | accepted=T
+
+[ITER 5] cost=1138 | best=1138 | delta=-58 | k=1 | accepted=T
+
+[ITER 6] cost=1046 | best=1046 | delta=-92 | k=1 | accepted=T
+
+[ITER 7] cost=1014 | best=1014 | delta=-32 | k=1 | accepted=T
+
+[ITER 8] cost=981 | best=981 | delta=-33 | k=1 | accepted=T
+
+[ITER 9] cost=963 | best=963 | delta=-18 | k=1 | accepted=T
+
+[ITER 10] cost=940 | best=940 | delta=-23 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 940
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3590 sec
+Gap: 42.2088
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 60
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 31
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3841 | best=3841 | delta=-121 | k=1 | accepted=T
+
+[ITER 2] cost=3751 | best=3751 | delta=-90 | k=1 | accepted=T
+
+[ITER 3] cost=3645 | best=3645 | delta=-106 | k=1 | accepted=T
+
+[ITER 4] cost=3522 | best=3522 | delta=-123 | k=1 | accepted=T
+
+[ITER 5] cost=3480 | best=3480 | delta=-42 | k=1 | accepted=T
+
+[ITER 6] cost=3428 | best=3428 | delta=-52 | k=1 | accepted=T
+
+[ITER 7] cost=3339 | best=3339 | delta=-89 | k=1 | accepted=T
+
+[ITER 8] cost=3269 | best=3269 | delta=-70 | k=1 | accepted=T
+
+[ITER 9] cost=3187 | best=3187 | delta=-82 | k=1 | accepted=T
+
+[ITER 10] cost=3056 | best=3056 | delta=-131 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3056
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3980 sec
+Gap: 160.3066
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 31
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 32
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3534 | best=3534 | delta=-119 | k=1 | accepted=T
+
+[ITER 2] cost=3477 | best=3477 | delta=-57 | k=1 | accepted=T
+
+[ITER 3] cost=3407 | best=3407 | delta=-70 | k=1 | accepted=T
+
+[ITER 4] cost=3359 | best=3359 | delta=-48 | k=1 | accepted=T
+
+[ITER 5] cost=3293 | best=3293 | delta=-66 | k=1 | accepted=T
+
+[ITER 6] cost=3221 | best=3221 | delta=-72 | k=1 | accepted=T
+
+[ITER 7] cost=3146 | best=3146 | delta=-75 | k=1 | accepted=T
+
+[ITER 8] cost=2927 | best=2927 | delta=-219 | k=1 | accepted=T
+
+[ITER 9] cost=2915 | best=2915 | delta=-12 | k=1 | accepted=T
+
+[ITER 10] cost=2730 | best=2730 | delta=-185 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2730
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4890 sec
+Gap: 132.5383
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 32
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 33
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4166 | best=4166 | delta=-124 | k=1 | accepted=T
+
+[ITER 2] cost=4092 | best=4092 | delta=-74 | k=1 | accepted=T
+
+[ITER 3] cost=3966 | best=3966 | delta=-126 | k=1 | accepted=T
+
+[ITER 4] cost=3833 | best=3833 | delta=-133 | k=1 | accepted=T
+
+[ITER 5] cost=3735 | best=3735 | delta=-98 | k=1 | accepted=T
+
+[ITER 6] cost=3683 | best=3683 | delta=-52 | k=1 | accepted=T
+
+[ITER 7] cost=3632 | best=3632 | delta=-51 | k=1 | accepted=T
+
+[ITER 8] cost=3540 | best=3540 | delta=-92 | k=1 | accepted=T
+
+[ITER 9] cost=3464 | best=3464 | delta=-76 | k=1 | accepted=T
+
+[ITER 10] cost=3314 | best=3314 | delta=-150 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3314
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4250 sec
+Gap: 182.2828
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 33
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 34
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3830 | best=3830 | delta=-25 | k=1 | accepted=T
+
+[ITER 2] cost=3662 | best=3662 | delta=-168 | k=1 | accepted=T
+
+[ITER 3] cost=3605 | best=3605 | delta=-57 | k=1 | accepted=T
+
+[ITER 4] cost=3524 | best=3524 | delta=-81 | k=1 | accepted=T
+
+[ITER 5] cost=3443 | best=3443 | delta=-81 | k=1 | accepted=T
+
+[ITER 6] cost=3288 | best=3288 | delta=-155 | k=1 | accepted=T
+
+[ITER 7] cost=3243 | best=3243 | delta=-45 | k=1 | accepted=T
+
+[ITER 8] cost=3200 | best=3200 | delta=-43 | k=1 | accepted=T
+
+[ITER 9] cost=3133 | best=3133 | delta=-67 | k=1 | accepted=T
+
+[ITER 10] cost=3052 | best=3052 | delta=-81 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3052
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4160 sec
+Gap: 159.9659
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 34
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 35
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3482 | best=3482 | delta=-52 | k=1 | accepted=T
+
+[ITER 2] cost=3265 | best=3265 | delta=-217 | k=1 | accepted=T
+
+[ITER 3] cost=3223 | best=3223 | delta=-42 | k=1 | accepted=T
+
+[ITER 4] cost=3121 | best=3121 | delta=-102 | k=1 | accepted=T
+
+[ITER 5] cost=3034 | best=3034 | delta=-87 | k=1 | accepted=T
+
+[ITER 6] cost=2942 | best=2942 | delta=-92 | k=1 | accepted=T
+
+[ITER 7] cost=2845 | best=2845 | delta=-97 | k=1 | accepted=T
+
+[ITER 8] cost=2796 | best=2796 | delta=-49 | k=1 | accepted=T
+
+[ITER 9] cost=2727 | best=2727 | delta=-69 | k=1 | accepted=T
+
+[ITER 10] cost=2642 | best=2642 | delta=-85 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2642
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3770 sec
+Gap: 125.0426
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 35
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 36
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3865 | best=3865 | delta=-84 | k=1 | accepted=T
+
+[ITER 2] cost=3798 | best=3798 | delta=-67 | k=1 | accepted=T
+
+[ITER 3] cost=3723 | best=3723 | delta=-75 | k=1 | accepted=T
+
+[ITER 4] cost=3649 | best=3649 | delta=-74 | k=1 | accepted=T
+
+[ITER 5] cost=3617 | best=3617 | delta=-32 | k=1 | accepted=T
+
+[ITER 6] cost=3597 | best=3597 | delta=-20 | k=1 | accepted=T
+
+[ITER 7] cost=3370 | best=3370 | delta=-227 | k=1 | accepted=T
+
+[ITER 8] cost=3309 | best=3309 | delta=-61 | k=1 | accepted=T
+
+[ITER 9] cost=3270 | best=3270 | delta=-39 | k=1 | accepted=T
+
+[ITER 10] cost=3125 | best=3125 | delta=-145 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3125
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3910 sec
+Gap: 166.1840
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 36
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 37
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3401 | best=3401 | delta=-130 | k=1 | accepted=T
+
+[ITER 2] cost=3318 | best=3318 | delta=-83 | k=1 | accepted=T
+
+[ITER 3] cost=3196 | best=3196 | delta=-122 | k=1 | accepted=T
+
+[ITER 4] cost=3127 | best=3127 | delta=-69 | k=1 | accepted=T
+
+[ITER 5] cost=3111 | best=3111 | delta=-16 | k=1 | accepted=T
+
+[ITER 6] cost=3086 | best=3086 | delta=-25 | k=1 | accepted=T
+
+[ITER 7] cost=3036 | best=3036 | delta=-50 | k=1 | accepted=T
+
+[ITER 8] cost=2996 | best=2996 | delta=-40 | k=1 | accepted=T
+
+[ITER 9] cost=2850 | best=2850 | delta=-146 | k=1 | accepted=T
+
+[ITER 10] cost=2802 | best=2802 | delta=-48 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2802
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3890 sec
+Gap: 138.6712
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 37
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 38
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3770 | best=3770 | delta=-129 | k=1 | accepted=T
+
+[ITER 2] cost=3699 | best=3699 | delta=-71 | k=1 | accepted=T
+
+[ITER 3] cost=3606 | best=3606 | delta=-93 | k=1 | accepted=T
+
+[ITER 4] cost=3460 | best=3460 | delta=-146 | k=1 | accepted=T
+
+[ITER 5] cost=3328 | best=3328 | delta=-132 | k=1 | accepted=T
+
+[ITER 6] cost=3260 | best=3260 | delta=-68 | k=1 | accepted=T
+
+[ITER 7] cost=3191 | best=3191 | delta=-69 | k=1 | accepted=T
+
+[ITER 8] cost=3100 | best=3100 | delta=-91 | k=1 | accepted=T
+
+[ITER 9] cost=3062 | best=3062 | delta=-38 | k=1 | accepted=T
+
+[ITER 10] cost=2985 | best=2985 | delta=-77 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2985
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4260 sec
+Gap: 154.2589
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 38
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 39
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3691 | best=3691 | delta=-150 | k=1 | accepted=T
+
+[ITER 2] cost=3578 | best=3578 | delta=-113 | k=1 | accepted=T
+
+[ITER 3] cost=3520 | best=3520 | delta=-58 | k=1 | accepted=T
+
+[ITER 4] cost=3433 | best=3433 | delta=-87 | k=1 | accepted=T
+
+[ITER 5] cost=3361 | best=3361 | delta=-72 | k=1 | accepted=T
+
+[ITER 6] cost=3345 | best=3345 | delta=-16 | k=1 | accepted=T
+
+[ITER 7] cost=3280 | best=3280 | delta=-65 | k=1 | accepted=T
+
+[ITER 8] cost=3263 | best=3263 | delta=-17 | k=1 | accepted=T
+
+[ITER 9] cost=3194 | best=3194 | delta=-69 | k=1 | accepted=T
+
+[ITER 10] cost=3115 | best=3115 | delta=-79 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3115
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4000 sec
+Gap: 165.3322
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 39
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 40
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3646 | best=3646 | delta=-54 | k=1 | accepted=T
+
+[ITER 2] cost=3594 | best=3594 | delta=-52 | k=1 | accepted=T
+
+[ITER 3] cost=3552 | best=3552 | delta=-42 | k=1 | accepted=T
+
+[ITER 4] cost=3434 | best=3434 | delta=-118 | k=1 | accepted=T
+
+[ITER 5] cost=3355 | best=3355 | delta=-79 | k=1 | accepted=T
+
+[ITER 6] cost=3250 | best=3250 | delta=-105 | k=1 | accepted=T
+
+[ITER 7] cost=3200 | best=3200 | delta=-50 | k=1 | accepted=T
+
+[ITER 8] cost=2999 | best=2999 | delta=-201 | k=1 | accepted=T
+
+[ITER 9] cost=2900 | best=2900 | delta=-99 | k=1 | accepted=T
+
+[ITER 10] cost=2822 | best=2822 | delta=-78 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2822
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3790 sec
+Gap: 140.3748
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 40
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 41
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3089 | best=3089 | delta=-62 | k=1 | accepted=T
+
+[ITER 2] cost=3065 | best=3065 | delta=-24 | k=1 | accepted=T
+
+[ITER 3] cost=2934 | best=2934 | delta=-131 | k=1 | accepted=T
+
+[ITER 4] cost=2823 | best=2823 | delta=-111 | k=1 | accepted=T
+
+[ITER 5] cost=2752 | best=2752 | delta=-71 | k=1 | accepted=T
+
+[ITER 6] cost=2681 | best=2681 | delta=-71 | k=1 | accepted=T
+
+[ITER 7] cost=2631 | best=2631 | delta=-50 | k=1 | accepted=T
+
+[ITER 8] cost=2604 | best=2604 | delta=-27 | k=1 | accepted=T
+
+[ITER 9] cost=2486 | best=2486 | delta=-118 | k=1 | accepted=T
+
+[ITER 10] cost=2459 | best=2459 | delta=-27 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2459
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4110 sec
+Gap: 109.4549
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 41
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 42
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3536 | best=3536 | delta=-162 | k=1 | accepted=T
+
+[ITER 2] cost=3436 | best=3436 | delta=-100 | k=1 | accepted=T
+
+[ITER 3] cost=3332 | best=3332 | delta=-104 | k=1 | accepted=T
+
+[ITER 4] cost=3304 | best=3304 | delta=-28 | k=1 | accepted=T
+
+[ITER 5] cost=3199 | best=3199 | delta=-105 | k=1 | accepted=T
+
+[ITER 6] cost=3107 | best=3107 | delta=-92 | k=1 | accepted=T
+
+[ITER 7] cost=3050 | best=3050 | delta=-57 | k=1 | accepted=T
+
+[ITER 8] cost=2986 | best=2986 | delta=-64 | k=1 | accepted=T
+
+[ITER 9] cost=2957 | best=2957 | delta=-29 | k=1 | accepted=T
+
+[ITER 10] cost=2864 | best=2864 | delta=-93 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2864
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3880 sec
+Gap: 143.9523
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 42
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 43
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3873 | best=3873 | delta=-94 | k=1 | accepted=T
+
+[ITER 2] cost=3697 | best=3697 | delta=-176 | k=1 | accepted=T
+
+[ITER 3] cost=3628 | best=3628 | delta=-69 | k=1 | accepted=T
+
+[ITER 4] cost=3451 | best=3451 | delta=-177 | k=1 | accepted=T
+
+[ITER 5] cost=3424 | best=3424 | delta=-27 | k=1 | accepted=T
+
+[ITER 6] cost=3345 | best=3345 | delta=-79 | k=1 | accepted=T
+
+[ITER 7] cost=3288 | best=3288 | delta=-57 | k=1 | accepted=T
+
+[ITER 8] cost=3268 | best=3268 | delta=-20 | k=1 | accepted=T
+
+[ITER 9] cost=3216 | best=3216 | delta=-52 | k=1 | accepted=T
+
+[ITER 10] cost=3189 | best=3189 | delta=-27 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3189
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3840 sec
+Gap: 171.6354
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 43
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 44
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3535 | best=3535 | delta=-201 | k=1 | accepted=T
+
+[ITER 2] cost=3505 | best=3505 | delta=-30 | k=1 | accepted=T
+
+[ITER 3] cost=3461 | best=3461 | delta=-44 | k=1 | accepted=T
+
+[ITER 4] cost=3397 | best=3397 | delta=-64 | k=1 | accepted=T
+
+[ITER 5] cost=3362 | best=3362 | delta=-35 | k=1 | accepted=T
+
+[ITER 6] cost=3280 | best=3280 | delta=-82 | k=1 | accepted=T
+
+[ITER 7] cost=3173 | best=3173 | delta=-107 | k=1 | accepted=T
+
+[ITER 8] cost=3031 | best=3031 | delta=-142 | k=1 | accepted=T
+
+[ITER 9] cost=2935 | best=2935 | delta=-96 | k=1 | accepted=T
+
+[ITER 10] cost=2833 | best=2833 | delta=-102 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2833
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4200 sec
+Gap: 141.3118
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 44
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 45
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3707 | best=3707 | delta=-117 | k=1 | accepted=T
+
+[ITER 2] cost=3571 | best=3571 | delta=-136 | k=1 | accepted=T
+
+[ITER 3] cost=3507 | best=3507 | delta=-64 | k=1 | accepted=T
+
+[ITER 4] cost=3440 | best=3440 | delta=-67 | k=1 | accepted=T
+
+[ITER 5] cost=3376 | best=3376 | delta=-64 | k=1 | accepted=T
+
+[ITER 6] cost=3369 | best=3369 | delta=-7 | k=1 | accepted=T
+
+[ITER 7] cost=3289 | best=3289 | delta=-80 | k=1 | accepted=T
+
+[ITER 8] cost=3216 | best=3216 | delta=-73 | k=1 | accepted=T
+
+[ITER 9] cost=3161 | best=3161 | delta=-55 | k=1 | accepted=T
+
+[ITER 10] cost=3022 | best=3022 | delta=-139 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3022
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3880 sec
+Gap: 157.4106
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 45
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 46
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4358 | best=4358 | delta=-110 | k=1 | accepted=T
+
+[ITER 2] cost=4306 | best=4306 | delta=-52 | k=1 | accepted=T
+
+[ITER 3] cost=4198 | best=4198 | delta=-108 | k=1 | accepted=T
+
+[ITER 4] cost=4118 | best=4118 | delta=-80 | k=1 | accepted=T
+
+[ITER 5] cost=4022 | best=4022 | delta=-96 | k=1 | accepted=T
+
+[ITER 6] cost=3986 | best=3986 | delta=-36 | k=1 | accepted=T
+
+[ITER 7] cost=3884 | best=3884 | delta=-102 | k=1 | accepted=T
+
+[ITER 8] cost=3739 | best=3739 | delta=-145 | k=1 | accepted=T
+
+[ITER 9] cost=3719 | best=3719 | delta=-20 | k=1 | accepted=T
+
+[ITER 10] cost=3656 | best=3656 | delta=-63 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3656
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3780 sec
+Gap: 211.4140
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 46
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 47
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3826 | best=3826 | delta=-90 | k=1 | accepted=T
+
+[ITER 2] cost=3770 | best=3770 | delta=-56 | k=1 | accepted=T
+
+[ITER 3] cost=3650 | best=3650 | delta=-120 | k=1 | accepted=T
+
+[ITER 4] cost=3556 | best=3556 | delta=-94 | k=1 | accepted=T
+
+[ITER 5] cost=3461 | best=3461 | delta=-95 | k=1 | accepted=T
+
+[ITER 6] cost=3345 | best=3345 | delta=-116 | k=1 | accepted=T
+
+[ITER 7] cost=3225 | best=3225 | delta=-120 | k=1 | accepted=T
+
+[ITER 8] cost=3126 | best=3126 | delta=-99 | k=1 | accepted=T
+
+[ITER 9] cost=3030 | best=3030 | delta=-96 | k=1 | accepted=T
+
+[ITER 10] cost=2991 | best=2991 | delta=-39 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2991
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3730 sec
+Gap: 154.7700
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 47
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 48
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3725 | best=3725 | delta=-121 | k=1 | accepted=T
+
+[ITER 2] cost=3659 | best=3659 | delta=-66 | k=1 | accepted=T
+
+[ITER 3] cost=3572 | best=3572 | delta=-87 | k=1 | accepted=T
+
+[ITER 4] cost=3525 | best=3525 | delta=-47 | k=1 | accepted=T
+
+[ITER 5] cost=3481 | best=3481 | delta=-44 | k=1 | accepted=T
+
+[ITER 6] cost=3355 | best=3355 | delta=-126 | k=1 | accepted=T
+
+[ITER 7] cost=3311 | best=3311 | delta=-44 | k=1 | accepted=T
+
+[ITER 8] cost=3236 | best=3236 | delta=-75 | k=1 | accepted=T
+
+[ITER 9] cost=3080 | best=3080 | delta=-156 | k=1 | accepted=T
+
+[ITER 10] cost=2995 | best=2995 | delta=-85 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2995
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4100 sec
+Gap: 155.1107
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 48
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 49
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4132 | best=4132 | delta=-89 | k=1 | accepted=T
+
+[ITER 2] cost=3937 | best=3937 | delta=-195 | k=1 | accepted=T
+
+[ITER 3] cost=3844 | best=3844 | delta=-93 | k=1 | accepted=T
+
+[ITER 4] cost=3673 | best=3673 | delta=-171 | k=1 | accepted=T
+
+[ITER 5] cost=3521 | best=3521 | delta=-152 | k=1 | accepted=T
+
+[ITER 6] cost=3497 | best=3497 | delta=-24 | k=1 | accepted=T
+
+[ITER 7] cost=3399 | best=3399 | delta=-98 | k=1 | accepted=T
+
+[ITER 8] cost=3319 | best=3319 | delta=-80 | k=1 | accepted=T
+
+[ITER 9] cost=3260 | best=3260 | delta=-59 | k=1 | accepted=T
+
+[ITER 10] cost=3137 | best=3137 | delta=-123 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3137
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3950 sec
+Gap: 167.2061
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 49
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 50
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3799 | best=3799 | delta=-176 | k=1 | accepted=T
+
+[ITER 2] cost=3752 | best=3752 | delta=-47 | k=1 | accepted=T
+
+[ITER 3] cost=3622 | best=3622 | delta=-130 | k=1 | accepted=T
+
+[ITER 4] cost=3497 | best=3497 | delta=-125 | k=1 | accepted=T
+
+[ITER 5] cost=3437 | best=3437 | delta=-60 | k=1 | accepted=T
+
+[ITER 6] cost=3418 | best=3418 | delta=-19 | k=1 | accepted=T
+
+[ITER 7] cost=3380 | best=3380 | delta=-38 | k=1 | accepted=T
+
+[ITER 8] cost=3277 | best=3277 | delta=-103 | k=1 | accepted=T
+
+[ITER 9] cost=3177 | best=3177 | delta=-100 | k=1 | accepted=T
+
+[ITER 10] cost=3125 | best=3125 | delta=-52 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3125
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3800 sec
+Gap: 166.1840
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 50
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 51
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3565 | best=3565 | delta=-90 | k=1 | accepted=T
+
+[ITER 2] cost=3513 | best=3513 | delta=-52 | k=1 | accepted=T
+
+[ITER 3] cost=3448 | best=3448 | delta=-65 | k=1 | accepted=T
+
+[ITER 4] cost=3343 | best=3343 | delta=-105 | k=1 | accepted=T
+
+[ITER 5] cost=3254 | best=3254 | delta=-89 | k=1 | accepted=T
+
+[ITER 6] cost=3205 | best=3205 | delta=-49 | k=1 | accepted=T
+
+[ITER 7] cost=3123 | best=3123 | delta=-82 | k=1 | accepted=T
+
+[ITER 8] cost=3092 | best=3092 | delta=-31 | k=1 | accepted=T
+
+[ITER 9] cost=2997 | best=2997 | delta=-95 | k=1 | accepted=T
+
+[ITER 10] cost=2906 | best=2906 | delta=-91 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2906
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3660 sec
+Gap: 147.5298
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 51
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 52
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3827 | best=3827 | delta=-109 | k=1 | accepted=T
+
+[ITER 2] cost=3665 | best=3665 | delta=-162 | k=1 | accepted=T
+
+[ITER 3] cost=3572 | best=3572 | delta=-93 | k=1 | accepted=T
+
+[ITER 4] cost=3503 | best=3503 | delta=-69 | k=1 | accepted=T
+
+[ITER 5] cost=3415 | best=3415 | delta=-88 | k=1 | accepted=T
+
+[ITER 6] cost=3286 | best=3286 | delta=-129 | k=1 | accepted=T
+
+[ITER 7] cost=3259 | best=3259 | delta=-27 | k=1 | accepted=T
+
+[ITER 8] cost=3210 | best=3210 | delta=-49 | k=1 | accepted=T
+
+[ITER 9] cost=3185 | best=3185 | delta=-25 | k=1 | accepted=T
+
+[ITER 10] cost=3104 | best=3104 | delta=-81 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3104
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3540 sec
+Gap: 164.3952
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 52
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 53
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3818 | best=3818 | delta=-46 | k=1 | accepted=T
+
+[ITER 2] cost=3716 | best=3716 | delta=-102 | k=1 | accepted=T
+
+[ITER 3] cost=3605 | best=3605 | delta=-111 | k=1 | accepted=T
+
+[ITER 4] cost=3553 | best=3553 | delta=-52 | k=1 | accepted=T
+
+[ITER 5] cost=3493 | best=3493 | delta=-60 | k=1 | accepted=T
+
+[ITER 6] cost=3454 | best=3454 | delta=-39 | k=1 | accepted=T
+
+[ITER 7] cost=3371 | best=3371 | delta=-83 | k=1 | accepted=T
+
+[ITER 8] cost=3333 | best=3333 | delta=-38 | k=1 | accepted=T
+
+[ITER 9] cost=3254 | best=3254 | delta=-79 | k=1 | accepted=T
+
+[ITER 10] cost=3201 | best=3201 | delta=-53 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3201
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3980 sec
+Gap: 172.6576
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 53
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 54
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4117 | best=4117 | delta=-70 | k=1 | accepted=T
+
+[ITER 2] cost=3960 | best=3960 | delta=-157 | k=1 | accepted=T
+
+[ITER 3] cost=3918 | best=3918 | delta=-42 | k=1 | accepted=T
+
+[ITER 4] cost=3818 | best=3818 | delta=-100 | k=1 | accepted=T
+
+[ITER 5] cost=3747 | best=3747 | delta=-71 | k=1 | accepted=T
+
+[ITER 6] cost=3634 | best=3634 | delta=-113 | k=1 | accepted=T
+
+[ITER 7] cost=3511 | best=3511 | delta=-123 | k=1 | accepted=T
+
+[ITER 8] cost=3484 | best=3484 | delta=-27 | k=1 | accepted=T
+
+[ITER 9] cost=3344 | best=3344 | delta=-140 | k=1 | accepted=T
+
+[ITER 10] cost=3210 | best=3210 | delta=-134 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3210
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3710 sec
+Gap: 173.4242
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 54
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 55
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3897 | best=3897 | delta=-108 | k=1 | accepted=T
+
+[ITER 2] cost=3806 | best=3806 | delta=-91 | k=1 | accepted=T
+
+[ITER 3] cost=3723 | best=3723 | delta=-83 | k=1 | accepted=T
+
+[ITER 4] cost=3569 | best=3569 | delta=-154 | k=1 | accepted=T
+
+[ITER 5] cost=3419 | best=3419 | delta=-150 | k=1 | accepted=T
+
+[ITER 6] cost=3374 | best=3374 | delta=-45 | k=1 | accepted=T
+
+[ITER 7] cost=3329 | best=3329 | delta=-45 | k=1 | accepted=T
+
+[ITER 8] cost=3314 | best=3314 | delta=-15 | k=1 | accepted=T
+
+[ITER 9] cost=3266 | best=3266 | delta=-48 | k=1 | accepted=T
+
+[ITER 10] cost=3235 | best=3235 | delta=-31 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3235
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3910 sec
+Gap: 175.5537
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 55
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 56
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3553 | best=3553 | delta=-150 | k=1 | accepted=T
+
+[ITER 2] cost=3476 | best=3476 | delta=-77 | k=1 | accepted=T
+
+[ITER 3] cost=3404 | best=3404 | delta=-72 | k=1 | accepted=T
+
+[ITER 4] cost=3298 | best=3298 | delta=-106 | k=1 | accepted=T
+
+[ITER 5] cost=3233 | best=3233 | delta=-65 | k=1 | accepted=T
+
+[ITER 6] cost=3087 | best=3087 | delta=-146 | k=1 | accepted=T
+
+[ITER 7] cost=2981 | best=2981 | delta=-106 | k=1 | accepted=T
+
+[ITER 8] cost=2877 | best=2877 | delta=-104 | k=1 | accepted=T
+
+[ITER 9] cost=2798 | best=2798 | delta=-79 | k=1 | accepted=T
+
+[ITER 10] cost=2722 | best=2722 | delta=-76 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2722
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4120 sec
+Gap: 131.8569
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 56
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 57
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4094 | best=4094 | delta=-97 | k=1 | accepted=T
+
+[ITER 2] cost=4025 | best=4025 | delta=-69 | k=1 | accepted=T
+
+[ITER 3] cost=3875 | best=3875 | delta=-150 | k=1 | accepted=T
+
+[ITER 4] cost=3813 | best=3813 | delta=-62 | k=1 | accepted=T
+
+[ITER 5] cost=3789 | best=3789 | delta=-24 | k=1 | accepted=T
+
+[ITER 6] cost=3672 | best=3672 | delta=-117 | k=1 | accepted=T
+
+[ITER 7] cost=3580 | best=3580 | delta=-92 | k=1 | accepted=T
+
+[ITER 8] cost=3530 | best=3530 | delta=-50 | k=1 | accepted=T
+
+[ITER 9] cost=3467 | best=3467 | delta=-63 | k=1 | accepted=T
+
+[ITER 10] cost=3343 | best=3343 | delta=-124 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3343
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3460 sec
+Gap: 184.7530
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 57
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 58
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3401 | best=3401 | delta=-94 | k=1 | accepted=T
+
+[ITER 2] cost=3307 | best=3307 | delta=-94 | k=1 | accepted=T
+
+[ITER 3] cost=3207 | best=3207 | delta=-100 | k=1 | accepted=T
+
+[ITER 4] cost=3167 | best=3167 | delta=-40 | k=1 | accepted=T
+
+[ITER 5] cost=3103 | best=3103 | delta=-64 | k=1 | accepted=T
+
+[ITER 6] cost=2980 | best=2980 | delta=-123 | k=1 | accepted=T
+
+[ITER 7] cost=2949 | best=2949 | delta=-31 | k=1 | accepted=T
+
+[ITER 8] cost=2884 | best=2884 | delta=-65 | k=1 | accepted=T
+
+[ITER 9] cost=2872 | best=2872 | delta=-12 | k=1 | accepted=T
+
+[ITER 10] cost=2818 | best=2818 | delta=-54 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2818
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4030 sec
+Gap: 140.0341
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 58
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 59
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3504 | best=3504 | delta=-151 | k=1 | accepted=T
+
+[ITER 2] cost=3413 | best=3413 | delta=-91 | k=1 | accepted=T
+
+[ITER 3] cost=3343 | best=3343 | delta=-70 | k=1 | accepted=T
+
+[ITER 4] cost=3303 | best=3303 | delta=-40 | k=1 | accepted=T
+
+[ITER 5] cost=3218 | best=3218 | delta=-85 | k=1 | accepted=T
+
+[ITER 6] cost=3167 | best=3167 | delta=-51 | k=1 | accepted=T
+
+[ITER 7] cost=3070 | best=3070 | delta=-97 | k=1 | accepted=T
+
+[ITER 8] cost=3021 | best=3021 | delta=-49 | k=1 | accepted=T
+
+[ITER 9] cost=2967 | best=2967 | delta=-54 | k=1 | accepted=T
+
+[ITER 10] cost=2908 | best=2908 | delta=-59 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 2908
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3560 sec
+Gap: 147.7002
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 59
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 60
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=3821 | best=3821 | delta=-127 | k=1 | accepted=T
+
+[ITER 2] cost=3699 | best=3699 | delta=-122 | k=1 | accepted=T
+
+[ITER 3] cost=3662 | best=3662 | delta=-37 | k=1 | accepted=T
+
+[ITER 4] cost=3610 | best=3610 | delta=-52 | k=1 | accepted=T
+
+[ITER 5] cost=3540 | best=3540 | delta=-70 | k=1 | accepted=T
+
+[ITER 6] cost=3473 | best=3473 | delta=-67 | k=1 | accepted=T
+
+[ITER 7] cost=3362 | best=3362 | delta=-111 | k=1 | accepted=T
+
+[ITER 8] cost=3339 | best=3339 | delta=-23 | k=1 | accepted=T
+
+[ITER 9] cost=3283 | best=3283 | delta=-56 | k=1 | accepted=T
+
+[ITER 10] cost=3188 | best=3188 | delta=-95 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3188
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3890 sec
+Gap: 171.5502
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 60
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 31
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=5225 | best=5225 | delta=-80 | k=1 | accepted=T
+
+[ITER 2] cost=5169 | best=5169 | delta=-56 | k=1 | accepted=T
+
+[ITER 3] cost=5050 | best=5050 | delta=-119 | k=1 | accepted=T
+
+[ITER 4] cost=5013 | best=5013 | delta=-37 | k=1 | accepted=T
+
+[ITER 5] cost=4959 | best=4959 | delta=-54 | k=1 | accepted=T
+
+[ITER 6] cost=4880 | best=4880 | delta=-79 | k=1 | accepted=T
+
+[ITER 7] cost=4751 | best=4751 | delta=-129 | k=1 | accepted=T
+
+[ITER 8] cost=4624 | best=4624 | delta=-127 | k=1 | accepted=T
+
+[ITER 9] cost=4579 | best=4579 | delta=-45 | k=1 | accepted=T
+
+[ITER 10] cost=4431 | best=4431 | delta=-148 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4431
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3560 sec
+Gap: 151.3329
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 31
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 32
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4713 | best=4713 | delta=-113 | k=1 | accepted=T
+
+[ITER 2] cost=4675 | best=4675 | delta=-38 | k=1 | accepted=T
+
+[ITER 3] cost=4630 | best=4630 | delta=-45 | k=1 | accepted=T
+
+[ITER 4] cost=4607 | best=4607 | delta=-23 | k=1 | accepted=T
+
+[ITER 5] cost=4516 | best=4516 | delta=-91 | k=1 | accepted=T
+
+[ITER 6] cost=4496 | best=4496 | delta=-20 | k=1 | accepted=T
+
+[ITER 7] cost=4456 | best=4456 | delta=-40 | k=1 | accepted=T
+
+[ITER 8] cost=4381 | best=4381 | delta=-75 | k=1 | accepted=T
+
+[ITER 9] cost=4343 | best=4343 | delta=-38 | k=1 | accepted=T
+
+[ITER 10] cost=4234 | best=4234 | delta=-109 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4234
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3480 sec
+Gap: 140.1588
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 32
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 33
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4581 | best=4581 | delta=-143 | k=1 | accepted=T
+
+[ITER 2] cost=4504 | best=4504 | delta=-77 | k=1 | accepted=T
+
+[ITER 3] cost=4452 | best=4452 | delta=-52 | k=1 | accepted=T
+
+[ITER 4] cost=4410 | best=4410 | delta=-42 | k=1 | accepted=T
+
+[ITER 5] cost=4334 | best=4334 | delta=-76 | k=1 | accepted=T
+
+[ITER 6] cost=4287 | best=4287 | delta=-47 | k=1 | accepted=T
+
+[ITER 7] cost=4133 | best=4133 | delta=-154 | k=1 | accepted=T
+
+[ITER 8] cost=4074 | best=4074 | delta=-59 | k=1 | accepted=T
+
+[ITER 9] cost=4025 | best=4025 | delta=-49 | k=1 | accepted=T
+
+[ITER 10] cost=3976 | best=3976 | delta=-49 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3976
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3620 sec
+Gap: 125.5247
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 33
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 34
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4884 | best=4884 | delta=-185 | k=1 | accepted=T
+
+[ITER 2] cost=4727 | best=4727 | delta=-157 | k=1 | accepted=T
+
+[ITER 3] cost=4656 | best=4656 | delta=-71 | k=1 | accepted=T
+
+[ITER 4] cost=4612 | best=4612 | delta=-44 | k=1 | accepted=T
+
+[ITER 5] cost=4476 | best=4476 | delta=-136 | k=1 | accepted=T
+
+[ITER 6] cost=4387 | best=4387 | delta=-89 | k=1 | accepted=T
+
+[ITER 7] cost=4347 | best=4347 | delta=-40 | k=1 | accepted=T
+
+[ITER 8] cost=4253 | best=4253 | delta=-94 | k=1 | accepted=T
+
+[ITER 9] cost=4129 | best=4129 | delta=-124 | k=1 | accepted=T
+
+[ITER 10] cost=4068 | best=4068 | delta=-61 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4068
+Iterations: 10
+Accepted improvements: 10
+Time: 0.4070 sec
+Gap: 130.7431
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 34
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 35
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4759 | best=4759 | delta=-190 | k=1 | accepted=T
+
+[ITER 2] cost=4668 | best=4668 | delta=-91 | k=1 | accepted=T
+
+[ITER 3] cost=4588 | best=4588 | delta=-80 | k=1 | accepted=T
+
+[ITER 4] cost=4547 | best=4547 | delta=-41 | k=1 | accepted=T
+
+[ITER 5] cost=4471 | best=4471 | delta=-76 | k=1 | accepted=T
+
+[ITER 6] cost=4417 | best=4417 | delta=-54 | k=1 | accepted=T
+
+[ITER 7] cost=4365 | best=4365 | delta=-52 | k=1 | accepted=T
+
+[ITER 8] cost=4334 | best=4334 | delta=-31 | k=1 | accepted=T
+
+[ITER 9] cost=4299 | best=4299 | delta=-35 | k=1 | accepted=T
+
+[ITER 10] cost=4257 | best=4257 | delta=-42 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4257
+Iterations: 10
+Accepted improvements: 10
+Time: 0.3600 sec
+Gap: 141.4634
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 35
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 36
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4584 | best=4584 | delta=-52 | k=1 | accepted=T
+
+[ITER 2] cost=4556 | best=4556 | delta=-28 | k=1 | accepted=T
+
+[ITER 3] cost=4497 | best=4497 | delta=-59 | k=1 | accepted=T
+
+[ITER 4] cost=4464 | best=4464 | delta=-33 | k=1 | accepted=T
+
+[ITER 5] cost=4431 | best=4431 | delta=-33 | k=1 | accepted=T
+
+[ITER 6] cost=4324 | best=4324 | delta=-107 | k=1 | accepted=T
+
+[ITER 7] cost=4280 | best=4280 | delta=-44 | k=1 | accepted=T
+
+[ITER 8] cost=4161 | best=4161 | delta=-119 | k=1 | accepted=T
+
+[ITER 9] cost=4099 | best=4099 | delta=-62 | k=1 | accepted=T
+
+[ITER 10] cost=4016 | best=4016 | delta=-83 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4016
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8240 sec
+Gap: 127.7935
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 36
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 37
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=5533 | best=5533 | delta=-104 | k=1 | accepted=T
+
+[ITER 2] cost=5456 | best=5456 | delta=-77 | k=1 | accepted=T
+
+[ITER 3] cost=5338 | best=5338 | delta=-118 | k=1 | accepted=T
+
+[ITER 4] cost=5285 | best=5285 | delta=-53 | k=1 | accepted=T
+
+[ITER 5] cost=5235 | best=5235 | delta=-50 | k=1 | accepted=T
+
+[ITER 6] cost=5150 | best=5150 | delta=-85 | k=1 | accepted=T
+
+[ITER 7] cost=5103 | best=5103 | delta=-47 | k=1 | accepted=T
+
+[ITER 8] cost=5073 | best=5073 | delta=-30 | k=1 | accepted=T
+
+[ITER 9] cost=5054 | best=5054 | delta=-19 | k=1 | accepted=T
+
+[ITER 10] cost=4915 | best=4915 | delta=-139 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4915
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7210 sec
+Gap: 178.7862
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 37
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 38
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=5011 | best=5011 | delta=-84 | k=1 | accepted=T
+
+[ITER 2] cost=4890 | best=4890 | delta=-121 | k=1 | accepted=T
+
+[ITER 3] cost=4822 | best=4822 | delta=-68 | k=1 | accepted=T
+
+[ITER 4] cost=4768 | best=4768 | delta=-54 | k=1 | accepted=T
+
+[ITER 5] cost=4653 | best=4653 | delta=-115 | k=1 | accepted=T
+
+[ITER 6] cost=4551 | best=4551 | delta=-102 | k=1 | accepted=T
+
+[ITER 7] cost=4451 | best=4451 | delta=-100 | k=1 | accepted=T
+
+[ITER 8] cost=4428 | best=4428 | delta=-23 | k=1 | accepted=T
+
+[ITER 9] cost=4402 | best=4402 | delta=-26 | k=1 | accepted=T
+
+[ITER 10] cost=4338 | best=4338 | delta=-64 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4338
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7950 sec
+Gap: 146.0579
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 38
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 39
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4775 | best=4775 | delta=-63 | k=1 | accepted=T
+
+[ITER 2] cost=4729 | best=4729 | delta=-46 | k=1 | accepted=T
+
+[ITER 3] cost=4648 | best=4648 | delta=-81 | k=1 | accepted=T
+
+[ITER 4] cost=4604 | best=4604 | delta=-44 | k=1 | accepted=T
+
+[ITER 5] cost=4544 | best=4544 | delta=-60 | k=1 | accepted=T
+
+[ITER 6] cost=4413 | best=4413 | delta=-131 | k=1 | accepted=T
+
+[ITER 7] cost=4379 | best=4379 | delta=-34 | k=1 | accepted=T
+
+[ITER 8] cost=4302 | best=4302 | delta=-77 | k=1 | accepted=T
+
+[ITER 9] cost=4218 | best=4218 | delta=-84 | k=1 | accepted=T
+
+[ITER 10] cost=4174 | best=4174 | delta=-44 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4174
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8360 sec
+Gap: 136.7555
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 39
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 40
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4839 | best=4839 | delta=-57 | k=1 | accepted=T
+
+[ITER 2] cost=4739 | best=4739 | delta=-100 | k=1 | accepted=T
+
+[ITER 3] cost=4705 | best=4705 | delta=-34 | k=1 | accepted=T
+
+[ITER 4] cost=4618 | best=4618 | delta=-87 | k=1 | accepted=T
+
+[ITER 5] cost=4512 | best=4512 | delta=-106 | k=1 | accepted=T
+
+[ITER 6] cost=4490 | best=4490 | delta=-22 | k=1 | accepted=T
+
+[ITER 7] cost=4422 | best=4422 | delta=-68 | k=1 | accepted=T
+
+[ITER 8] cost=4336 | best=4336 | delta=-86 | k=1 | accepted=T
+
+[ITER 9] cost=4308 | best=4308 | delta=-28 | k=1 | accepted=T
+
+[ITER 10] cost=4193 | best=4193 | delta=-115 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4193
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8270 sec
+Gap: 137.8332
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 40
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 41
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4454 | best=4454 | delta=-145 | k=1 | accepted=T
+
+[ITER 2] cost=4410 | best=4410 | delta=-44 | k=1 | accepted=T
+
+[ITER 3] cost=4375 | best=4375 | delta=-35 | k=1 | accepted=T
+
+[ITER 4] cost=4313 | best=4313 | delta=-62 | k=1 | accepted=T
+
+[ITER 5] cost=4207 | best=4207 | delta=-106 | k=1 | accepted=T
+
+[ITER 6] cost=4160 | best=4160 | delta=-47 | k=1 | accepted=T
+
+[ITER 7] cost=4087 | best=4087 | delta=-73 | k=1 | accepted=T
+
+[ITER 8] cost=4016 | best=4016 | delta=-71 | k=1 | accepted=T
+
+[ITER 9] cost=3960 | best=3960 | delta=-56 | k=1 | accepted=T
+
+[ITER 10] cost=3841 | best=3841 | delta=-119 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3841
+Iterations: 10
+Accepted improvements: 10
+Time: 0.9030 sec
+Gap: 117.8673
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 41
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 42
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4717 | best=4717 | delta=-88 | k=1 | accepted=T
+
+[ITER 2] cost=4654 | best=4654 | delta=-63 | k=1 | accepted=T
+
+[ITER 3] cost=4574 | best=4574 | delta=-80 | k=1 | accepted=T
+
+[ITER 4] cost=4517 | best=4517 | delta=-57 | k=1 | accepted=T
+
+[ITER 5] cost=4477 | best=4477 | delta=-40 | k=1 | accepted=T
+
+[ITER 6] cost=4373 | best=4373 | delta=-104 | k=1 | accepted=T
+
+[ITER 7] cost=4341 | best=4341 | delta=-32 | k=1 | accepted=T
+
+[ITER 8] cost=4303 | best=4303 | delta=-38 | k=1 | accepted=T
+
+[ITER 9] cost=4207 | best=4207 | delta=-96 | k=1 | accepted=T
+
+[ITER 10] cost=4165 | best=4165 | delta=-42 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4165
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7860 sec
+Gap: 136.2450
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 42
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 43
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4702 | best=4702 | delta=-160 | k=1 | accepted=T
+
+[ITER 2] cost=4618 | best=4618 | delta=-84 | k=1 | accepted=T
+
+[ITER 3] cost=4567 | best=4567 | delta=-51 | k=1 | accepted=T
+
+[ITER 4] cost=4519 | best=4519 | delta=-48 | k=1 | accepted=T
+
+[ITER 5] cost=4442 | best=4442 | delta=-77 | k=1 | accepted=T
+
+[ITER 6] cost=4373 | best=4373 | delta=-69 | k=1 | accepted=T
+
+[ITER 7] cost=4333 | best=4333 | delta=-40 | k=1 | accepted=T
+
+[ITER 8] cost=4256 | best=4256 | delta=-77 | k=1 | accepted=T
+
+[ITER 9] cost=4214 | best=4214 | delta=-42 | k=1 | accepted=T
+
+[ITER 10] cost=4083 | best=4083 | delta=-131 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4083
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7970 sec
+Gap: 131.5939
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 43
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 44
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4571 | best=4571 | delta=-96 | k=1 | accepted=T
+
+[ITER 2] cost=4476 | best=4476 | delta=-95 | k=1 | accepted=T
+
+[ITER 3] cost=4460 | best=4460 | delta=-16 | k=1 | accepted=T
+
+[ITER 4] cost=4430 | best=4430 | delta=-30 | k=1 | accepted=T
+
+[ITER 5] cost=4343 | best=4343 | delta=-87 | k=1 | accepted=T
+
+[ITER 6] cost=4274 | best=4274 | delta=-69 | k=1 | accepted=T
+
+[ITER 7] cost=4244 | best=4244 | delta=-30 | k=1 | accepted=T
+
+[ITER 8] cost=4106 | best=4106 | delta=-138 | k=1 | accepted=T
+
+[ITER 9] cost=3991 | best=3991 | delta=-115 | k=1 | accepted=T
+
+[ITER 10] cost=3961 | best=3961 | delta=-30 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3961
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7950 sec
+Gap: 124.6739
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 44
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 45
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=5019 | best=5019 | delta=-117 | k=1 | accepted=T
+
+[ITER 2] cost=4921 | best=4921 | delta=-98 | k=1 | accepted=T
+
+[ITER 3] cost=4843 | best=4843 | delta=-78 | k=1 | accepted=T
+
+[ITER 4] cost=4790 | best=4790 | delta=-53 | k=1 | accepted=T
+
+[ITER 5] cost=4739 | best=4739 | delta=-51 | k=1 | accepted=T
+
+[ITER 6] cost=4617 | best=4617 | delta=-122 | k=1 | accepted=T
+
+[ITER 7] cost=4527 | best=4527 | delta=-90 | k=1 | accepted=T
+
+[ITER 8] cost=4489 | best=4489 | delta=-38 | k=1 | accepted=T
+
+[ITER 9] cost=4432 | best=4432 | delta=-57 | k=1 | accepted=T
+
+[ITER 10] cost=4318 | best=4318 | delta=-114 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4318
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8370 sec
+Gap: 144.9234
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 45
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 46
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4850 | best=4850 | delta=-64 | k=1 | accepted=T
+
+[ITER 2] cost=4801 | best=4801 | delta=-49 | k=1 | accepted=T
+
+[ITER 3] cost=4743 | best=4743 | delta=-58 | k=1 | accepted=T
+
+[ITER 4] cost=4706 | best=4706 | delta=-37 | k=1 | accepted=T
+
+[ITER 5] cost=4604 | best=4604 | delta=-102 | k=1 | accepted=T
+
+[ITER 6] cost=4545 | best=4545 | delta=-59 | k=1 | accepted=T
+
+[ITER 7] cost=4501 | best=4501 | delta=-44 | k=1 | accepted=T
+
+[ITER 8] cost=4419 | best=4419 | delta=-82 | k=1 | accepted=T
+
+[ITER 9] cost=4390 | best=4390 | delta=-29 | k=1 | accepted=T
+
+[ITER 10] cost=4373 | best=4373 | delta=-17 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4373
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7070 sec
+Gap: 148.0431
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 46
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 47
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4611 | best=4611 | delta=-129 | k=1 | accepted=T
+
+[ITER 2] cost=4524 | best=4524 | delta=-87 | k=1 | accepted=T
+
+[ITER 3] cost=4461 | best=4461 | delta=-63 | k=1 | accepted=T
+
+[ITER 4] cost=4366 | best=4366 | delta=-95 | k=1 | accepted=T
+
+[ITER 5] cost=4291 | best=4291 | delta=-75 | k=1 | accepted=T
+
+[ITER 6] cost=4232 | best=4232 | delta=-59 | k=1 | accepted=T
+
+[ITER 7] cost=4147 | best=4147 | delta=-85 | k=1 | accepted=T
+
+[ITER 8] cost=4043 | best=4043 | delta=-104 | k=1 | accepted=T
+
+[ITER 9] cost=4006 | best=4006 | delta=-37 | k=1 | accepted=T
+
+[ITER 10] cost=3935 | best=3935 | delta=-71 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3935
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8190 sec
+Gap: 123.1991
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 47
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 48
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4813 | best=4813 | delta=-86 | k=1 | accepted=T
+
+[ITER 2] cost=4772 | best=4772 | delta=-41 | k=1 | accepted=T
+
+[ITER 3] cost=4745 | best=4745 | delta=-27 | k=1 | accepted=T
+
+[ITER 4] cost=4696 | best=4696 | delta=-49 | k=1 | accepted=T
+
+[ITER 5] cost=4644 | best=4644 | delta=-52 | k=1 | accepted=T
+
+[ITER 6] cost=4558 | best=4558 | delta=-86 | k=1 | accepted=T
+
+[ITER 7] cost=4448 | best=4448 | delta=-110 | k=1 | accepted=T
+
+[ITER 8] cost=4417 | best=4417 | delta=-31 | k=1 | accepted=T
+
+[ITER 9] cost=4349 | best=4349 | delta=-68 | k=1 | accepted=T
+
+[ITER 10] cost=4254 | best=4254 | delta=-95 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4254
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7970 sec
+Gap: 141.2933
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 48
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 49
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4956 | best=4956 | delta=-180 | k=1 | accepted=T
+
+[ITER 2] cost=4891 | best=4891 | delta=-65 | k=1 | accepted=T
+
+[ITER 3] cost=4807 | best=4807 | delta=-84 | k=1 | accepted=T
+
+[ITER 4] cost=4698 | best=4698 | delta=-109 | k=1 | accepted=T
+
+[ITER 5] cost=4641 | best=4641 | delta=-57 | k=1 | accepted=T
+
+[ITER 6] cost=4583 | best=4583 | delta=-58 | k=1 | accepted=T
+
+[ITER 7] cost=4519 | best=4519 | delta=-64 | k=1 | accepted=T
+
+[ITER 8] cost=4475 | best=4475 | delta=-44 | k=1 | accepted=T
+
+[ITER 9] cost=4447 | best=4447 | delta=-28 | k=1 | accepted=T
+
+[ITER 10] cost=4377 | best=4377 | delta=-70 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4377
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7740 sec
+Gap: 148.2700
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 49
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 50
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=5049 | best=5049 | delta=-114 | k=1 | accepted=T
+
+[ITER 2] cost=4986 | best=4986 | delta=-63 | k=1 | accepted=T
+
+[ITER 3] cost=4957 | best=4957 | delta=-29 | k=1 | accepted=T
+
+[ITER 4] cost=4900 | best=4900 | delta=-57 | k=1 | accepted=T
+
+[ITER 5] cost=4812 | best=4812 | delta=-88 | k=1 | accepted=T
+
+[ITER 6] cost=4738 | best=4738 | delta=-74 | k=1 | accepted=T
+
+[ITER 7] cost=4712 | best=4712 | delta=-26 | k=1 | accepted=T
+
+[ITER 8] cost=4655 | best=4655 | delta=-57 | k=1 | accepted=T
+
+[ITER 9] cost=4582 | best=4582 | delta=-73 | k=1 | accepted=T
+
+[ITER 10] cost=4523 | best=4523 | delta=-59 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4523
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7090 sec
+Gap: 156.5513
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 50
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 51
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4961 | best=4961 | delta=-95 | k=1 | accepted=T
+
+[ITER 2] cost=4826 | best=4826 | delta=-135 | k=1 | accepted=T
+
+[ITER 3] cost=4695 | best=4695 | delta=-131 | k=1 | accepted=T
+
+[ITER 4] cost=4540 | best=4540 | delta=-155 | k=1 | accepted=T
+
+[ITER 5] cost=4489 | best=4489 | delta=-51 | k=1 | accepted=T
+
+[ITER 6] cost=4466 | best=4466 | delta=-23 | k=1 | accepted=T
+
+[ITER 7] cost=4371 | best=4371 | delta=-95 | k=1 | accepted=T
+
+[ITER 8] cost=4336 | best=4336 | delta=-35 | k=1 | accepted=T
+
+[ITER 9] cost=4284 | best=4284 | delta=-52 | k=1 | accepted=T
+
+[ITER 10] cost=4218 | best=4218 | delta=-66 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4218
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8020 sec
+Gap: 139.2513
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 51
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 52
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=5080 | best=5080 | delta=-58 | k=1 | accepted=T
+
+[ITER 2] cost=4965 | best=4965 | delta=-115 | k=1 | accepted=T
+
+[ITER 3] cost=4885 | best=4885 | delta=-80 | k=1 | accepted=T
+
+[ITER 4] cost=4840 | best=4840 | delta=-45 | k=1 | accepted=T
+
+[ITER 5] cost=4784 | best=4784 | delta=-56 | k=1 | accepted=T
+
+[ITER 6] cost=4749 | best=4749 | delta=-35 | k=1 | accepted=T
+
+[ITER 7] cost=4647 | best=4647 | delta=-102 | k=1 | accepted=T
+
+[ITER 8] cost=4553 | best=4553 | delta=-94 | k=1 | accepted=T
+
+[ITER 9] cost=4432 | best=4432 | delta=-121 | k=1 | accepted=T
+
+[ITER 10] cost=4387 | best=4387 | delta=-45 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4387
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7720 sec
+Gap: 148.8372
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 52
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 53
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=5120 | best=5120 | delta=-88 | k=1 | accepted=T
+
+[ITER 2] cost=5020 | best=5020 | delta=-100 | k=1 | accepted=T
+
+[ITER 3] cost=4962 | best=4962 | delta=-58 | k=1 | accepted=T
+
+[ITER 4] cost=4933 | best=4933 | delta=-29 | k=1 | accepted=T
+
+[ITER 5] cost=4852 | best=4852 | delta=-81 | k=1 | accepted=T
+
+[ITER 6] cost=4811 | best=4811 | delta=-41 | k=1 | accepted=T
+
+[ITER 7] cost=4727 | best=4727 | delta=-84 | k=1 | accepted=T
+
+[ITER 8] cost=4672 | best=4672 | delta=-55 | k=1 | accepted=T
+
+[ITER 9] cost=4595 | best=4595 | delta=-77 | k=1 | accepted=T
+
+[ITER 10] cost=4521 | best=4521 | delta=-74 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4521
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7020 sec
+Gap: 156.4379
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 53
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 54
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4659 | best=4659 | delta=-30 | k=1 | accepted=T
+
+[ITER 2] cost=4568 | best=4568 | delta=-91 | k=1 | accepted=T
+
+[ITER 3] cost=4525 | best=4525 | delta=-43 | k=1 | accepted=T
+
+[ITER 4] cost=4509 | best=4509 | delta=-16 | k=1 | accepted=T
+
+[ITER 5] cost=4446 | best=4446 | delta=-63 | k=1 | accepted=T
+
+[ITER 6] cost=4382 | best=4382 | delta=-64 | k=1 | accepted=T
+
+[ITER 7] cost=4311 | best=4311 | delta=-71 | k=1 | accepted=T
+
+[ITER 8] cost=4298 | best=4298 | delta=-13 | k=1 | accepted=T
+
+[ITER 9] cost=4226 | best=4226 | delta=-72 | k=1 | accepted=T
+
+[ITER 10] cost=4153 | best=4153 | delta=-73 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4153
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7160 sec
+Gap: 135.5644
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 54
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 55
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4660 | best=4660 | delta=-155 | k=1 | accepted=T
+
+[ITER 2] cost=4542 | best=4542 | delta=-118 | k=1 | accepted=T
+
+[ITER 3] cost=4503 | best=4503 | delta=-39 | k=1 | accepted=T
+
+[ITER 4] cost=4417 | best=4417 | delta=-86 | k=1 | accepted=T
+
+[ITER 5] cost=4375 | best=4375 | delta=-42 | k=1 | accepted=T
+
+[ITER 6] cost=4303 | best=4303 | delta=-72 | k=1 | accepted=T
+
+[ITER 7] cost=4226 | best=4226 | delta=-77 | k=1 | accepted=T
+
+[ITER 8] cost=4208 | best=4208 | delta=-18 | k=1 | accepted=T
+
+[ITER 9] cost=4187 | best=4187 | delta=-21 | k=1 | accepted=T
+
+[ITER 10] cost=4132 | best=4132 | delta=-55 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4132
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7790 sec
+Gap: 134.3732
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 55
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 56
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4761 | best=4761 | delta=-32 | k=1 | accepted=T
+
+[ITER 2] cost=4735 | best=4735 | delta=-26 | k=1 | accepted=T
+
+[ITER 3] cost=4682 | best=4682 | delta=-53 | k=1 | accepted=T
+
+[ITER 4] cost=4505 | best=4505 | delta=-177 | k=1 | accepted=T
+
+[ITER 5] cost=4455 | best=4455 | delta=-50 | k=1 | accepted=T
+
+[ITER 6] cost=4432 | best=4432 | delta=-23 | k=1 | accepted=T
+
+[ITER 7] cost=4306 | best=4306 | delta=-126 | k=1 | accepted=T
+
+[ITER 8] cost=4281 | best=4281 | delta=-25 | k=1 | accepted=T
+
+[ITER 9] cost=4208 | best=4208 | delta=-73 | k=1 | accepted=T
+
+[ITER 10] cost=4126 | best=4126 | delta=-82 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4126
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8570 sec
+Gap: 134.0329
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 56
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 57
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4482 | best=4482 | delta=-53 | k=1 | accepted=T
+
+[ITER 2] cost=4391 | best=4391 | delta=-91 | k=1 | accepted=T
+
+[ITER 3] cost=4338 | best=4338 | delta=-53 | k=1 | accepted=T
+
+[ITER 4] cost=4291 | best=4291 | delta=-47 | k=1 | accepted=T
+
+[ITER 5] cost=4248 | best=4248 | delta=-43 | k=1 | accepted=T
+
+[ITER 6] cost=4210 | best=4210 | delta=-38 | k=1 | accepted=T
+
+[ITER 7] cost=4119 | best=4119 | delta=-91 | k=1 | accepted=T
+
+[ITER 8] cost=3969 | best=3969 | delta=-150 | k=1 | accepted=T
+
+[ITER 9] cost=3894 | best=3894 | delta=-75 | k=1 | accepted=T
+
+[ITER 10] cost=3804 | best=3804 | delta=-90 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 3804
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7600 sec
+Gap: 115.7686
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 57
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 58
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4710 | best=4710 | delta=-153 | k=1 | accepted=T
+
+[ITER 2] cost=4626 | best=4626 | delta=-84 | k=1 | accepted=T
+
+[ITER 3] cost=4559 | best=4559 | delta=-67 | k=1 | accepted=T
+
+[ITER 4] cost=4439 | best=4439 | delta=-120 | k=1 | accepted=T
+
+[ITER 5] cost=4410 | best=4410 | delta=-29 | k=1 | accepted=T
+
+[ITER 6] cost=4359 | best=4359 | delta=-51 | k=1 | accepted=T
+
+[ITER 7] cost=4332 | best=4332 | delta=-27 | k=1 | accepted=T
+
+[ITER 8] cost=4287 | best=4287 | delta=-45 | k=1 | accepted=T
+
+[ITER 9] cost=4239 | best=4239 | delta=-48 | k=1 | accepted=T
+
+[ITER 10] cost=4091 | best=4091 | delta=-148 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4091
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8150 sec
+Gap: 132.0476
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 58
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 59
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4910 | best=4910 | delta=-57 | k=1 | accepted=T
+
+[ITER 2] cost=4838 | best=4838 | delta=-72 | k=1 | accepted=T
+
+[ITER 3] cost=4695 | best=4695 | delta=-143 | k=1 | accepted=T
+
+[ITER 4] cost=4635 | best=4635 | delta=-60 | k=1 | accepted=T
+
+[ITER 5] cost=4520 | best=4520 | delta=-115 | k=1 | accepted=T
+
+[ITER 6] cost=4434 | best=4434 | delta=-86 | k=1 | accepted=T
+
+[ITER 7] cost=4336 | best=4336 | delta=-98 | k=1 | accepted=T
+
+[ITER 8] cost=4276 | best=4276 | delta=-60 | k=1 | accepted=T
+
+[ITER 9] cost=4138 | best=4138 | delta=-138 | k=1 | accepted=T
+
+[ITER 10] cost=4086 | best=4086 | delta=-52 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4086
+Iterations: 10
+Accepted improvements: 10
+Time: 0.7180 sec
+Gap: 131.7640
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 59
+Shared initial solution: T
+====================================
+
+====================================
+Algorithm: VNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 60
+Shared initial solution: T
+====================================
+
+==================================================
+VNS EXPERIMENTAL
+==================================================
+
+[ITER 1] cost=4810 | best=4810 | delta=-140 | k=1 | accepted=T
+
+[ITER 2] cost=4784 | best=4784 | delta=-26 | k=1 | accepted=T
+
+[ITER 3] cost=4658 | best=4658 | delta=-126 | k=1 | accepted=T
+
+[ITER 4] cost=4611 | best=4611 | delta=-47 | k=1 | accepted=T
+
+[ITER 5] cost=4434 | best=4434 | delta=-177 | k=1 | accepted=T
+
+[ITER 6] cost=4375 | best=4375 | delta=-59 | k=1 | accepted=T
+
+[ITER 7] cost=4161 | best=4161 | delta=-214 | k=1 | accepted=T
+
+[ITER 8] cost=4141 | best=4141 | delta=-20 | k=1 | accepted=T
+
+[ITER 9] cost=4063 | best=4063 | delta=-78 | k=1 | accepted=T
+
+[ITER 10] cost=4053 | best=4053 | delta=-10 | k=1 | accepted=T
+
+==================================================
+VNS FINAL
+==================================================
+
+Best cost: 4053
+Iterations: 10
+Accepted improvements: 10
+Time: 0.8390 sec
+Gap: 129.8922
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 60
+Shared initial solution: T
+====================================
+
+====================================
+ALL EXPERIMENTS FINISHED
+====================================

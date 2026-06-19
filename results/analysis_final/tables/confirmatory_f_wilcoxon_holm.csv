@@ -1,0 +1,3 @@
+dataset,instance,metric,n_pairs,mean_ivns,mean_vns,median_ivns,median_vns,mean_difference_ivns_minus_vns,median_difference_ivns_minus_vns,wins_ivns,wins_vns,ties,statistic,p_value,rank_biserial_positive_favors_ivns,p_value_holm,decision
+confirmatory_f,F-n135-k7,gap_percent,30,469.3115316333334,437.7337890333334,473.536987,439.7160035,31.577742599999997,35.800369500000016,4,26,0,30.0,3.7904828786849976e-06,-0.8709677419354839,3.7904828786849976e-06,significativo
+confirmatory_f,F-n135-k7,elapsed_time_seconds,30,14.705253699999997,0.8069367,14.840554000000001,0.8085035,13.898317,14.019049500000001,0,30,0,0.0,1.862645149230957e-09,-1.0,3.725290298461914e-09,significativo

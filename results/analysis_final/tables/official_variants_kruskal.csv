@@ -1,0 +1,7 @@
+instance,metric,groups,statistic,p_value,decision
+A-n33-k5,gap_percent,9,168.24790538566614,3.003425196031368e-32,significativo
+A-n33-k5,elapsed_time_seconds,9,227.08450069563753,1.2248219662013547e-44,significativo
+A-n65-k9,gap_percent,9,167.37025183297445,4.58632497553013e-32,significativo
+A-n65-k9,elapsed_time_seconds,9,224.16742928126706,5.067720339005797e-44,significativo
+A-n80-k10,gap_percent,9,134.7807681653966,2.8829898915003484e-25,significativo
+A-n80-k10,elapsed_time_seconds,9,232.1404886946593,1.0437999816336127e-45,significativo

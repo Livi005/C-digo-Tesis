@@ -1,0 +1,703 @@
+Loading src/vrp-package.lisp...
+Loading src/vrp-utilities.lisp...
+Loading src/vrp-random-number-generation.lisp...
+Loading src/vrp-generic-functions.lisp...
+Loading src/vrp-unit-testing.lisp...
+Loading src/vrp-class-definition-macro.lisp...
+Loading src/vrp-classes.lisp...
+Loading src/vrp-moments.lisp...
+Loading src/vrp-data.lisp...
+Loading src/vrp-neighborhood-exploration-macros.lisp...
+Loading src/vrp-neighborhood-simulation.lisp...
+Loading src/vrp-neighborhood-operations.lisp...
+Loading src/vrp-delta-cost.lisp...
+Loading src/vrp-search-strategies.lisp...
+Loading src/vrp-criteria.lisp...
+Loading src/vrp-algorithms.lisp...
+
+; file: /home/olivia3/Proyectos Uni/vrp/src/vrp-algorithms.lisp
+; in: DEFUN VNS-SHAKE
+;     (VRP::NEIGHBOORHOODS-USED-IN-VNS 0)
+; 
+; caught STYLE-WARNING:
+;   The variable NEIGHBOORHOODS-USED-IN-VNS is assigned but never read.
+
+;     (VRP::OPTIMUM-FOUND-IN-VNS NIL)
+; 
+; caught STYLE-WARNING:
+;   The variable OPTIMUM-FOUND-IN-VNS is assigned but never read.
+; 
+; compilation unit finished
+;   caught 2 STYLE-WARNING conditions
+
+; file: /home/olivia3/Proyectos Uni/vrp/src/vrp-algorithms.lisp
+; in: DEFUN VNS-SHAKE-SMART
+;     (VRP::NEIGHBOORHOODS-USED-IN-VNS 0)
+; 
+; caught STYLE-WARNING:
+;   The variable NEIGHBOORHOODS-USED-IN-VNS is assigned but never read.
+
+;     (VRP::OPTIMUM-FOUND-IN-VNS NIL)
+; 
+; caught STYLE-WARNING:
+;   The variable OPTIMUM-FOUND-IN-VNS is assigned but never read.
+; 
+; compilation unit finished
+;   caught 2 STYLE-WARNING conditions
+
+; file: /home/olivia3/Proyectos Uni/vrp/src/vrp-algorithms.lisp
+; in: DEFUN VNS-SHAKE-SMART-NO-OUTPUT
+;     (VRP::NEIGHBOORHOODS-USED-IN-VNS 0)
+; 
+; caught STYLE-WARNING:
+;   The variable NEIGHBOORHOODS-USED-IN-VNS is assigned but never read.
+
+;     (VRP::OPTIMUM-FOUND-IN-VNS NIL)
+; 
+; caught STYLE-WARNING:
+;   The variable OPTIMUM-FOUND-IN-VNS is assigned but never read.
+; 
+; compilation unit finished
+;   caught 2 STYLE-WARNING conditions
+Loading src/vrp-initial-routes.lisp...
+Loading data/vrp-data-a-n32-k5.lisp...
+Loading data/vrp-data-a-n33-k5.lisp...
+Loading data/vrp-data-a-n33-k6.lisp...
+Loading data/vrp-data-a-n37-k5.lisp...
+Loading data/vrp-data-a-n65-k9.lisp...
+Loading data/vrp-data-a-n80-k10.lisp...
+Loading data/vrp-data-f-n135-k7.lisp...
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 1
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 2
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 3
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 4
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 5
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 6
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 7
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 8
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 9
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 10
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 11
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 12
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 13
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 14
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 15
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 16
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 17
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 18
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 19
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 20
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 21
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 22
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 23
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 24
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 25
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 26
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 27
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 28
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 29
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 32 clients, capacity 100>
+Seed: 30
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 1
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 2
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 3
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 4
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 5
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 6
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 7
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 8
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 9
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 10
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 11
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 12
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 13
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 14
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 15
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 16
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 17
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 18
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 19
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 20
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 21
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 22
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 23
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 24
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 25
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 26
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 27
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 28
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 29
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 64 clients, capacity 100>
+Seed: 30
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 1
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 2
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 3
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 4
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 5
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 6
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 7
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 8
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 9
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 10
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 11
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 12
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 13
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 14
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 15
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 16
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 17
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 18
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 19
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 20
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 21
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 22
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 23
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 24
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 25
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 26
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 27
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 28
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 29
+Shared initial solution: NIL
+====================================
+
+====================================
+Algorithm: IVNS
+Running instance: <CVRP 1: 79 clients, capacity 100>
+Seed: 30
+Shared initial solution: NIL
+====================================
+
+====================================
+ALL EXPERIMENTS FINISHED
+====================================

@@ -1,0 +1,2 @@
+rank,configuration,variant,ivns_time,runs,gap_mean,gap_std,gap_median,gap_min,gap_max,time_mean,time_median
+1,baseline-first-t1.00,baseline-first,1.0,90,98.98821504444444,29.38296907871575,105.8990365,43.872921,149.148209,1.2189404666666666,0.9094964999999999

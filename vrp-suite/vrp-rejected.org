@@ -1,0 +1,2221 @@
+#+TITLE: VRP solver environment
+#+AUTHOR: Fernando Rodriguez Flores
+#+DATE 2018-08-19
+#+TODO: TODO WIP BROKEN | DONE
+#+TAGS: suite(s) classes(c) moments(m) data(d) algoritms(a) dcost(v)
+#+TAGS: emacs(e) utils(u)
+
+* Description
+  In this file I'm going to add sections that were discarded from the suite.
+
+
+
+*** Generic Functions to create the fixed parts on the macros         :dcost:
+**** some special variables
+***** ops-list
+      In a neighborhood search this variable is bound to a list with all the simpler-operations that define the current neighbor.
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defparameter ops-list nil
+       "In a neighborhood search this variable is bound to a list with all the simpler-operations that define the current neighbor.")
+     #+END_SRC
+     
+**** make-simulate-simpler-ops-code
+***** description
+      This function returns the code to be inserted in the do-neighborhood-operation macros to process all simpler-ops than can be obtained from a given neighborhood operation.
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-simulate-simpler-ops-code (operation working-copy)
+       (:documentation "Returns code to simulate all the simpler-ops in the neighborhood."))
+     #+END_SRC
+***** method (t t)
+****** description
+       As this code is the same in all the macros we have seen so far, the function is specialized in (t t)
+****** code
+      #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+      (defmethod make-simulate-simpler-ops-code (op wc)
+        "This function returns the code to be inserted in the do-neighborhood-operation macros to process all simpler-ops than can be obtained from a given neighborhood operation."
+        (declare (special ops-list simple-op simpler-ops working-copy))
+
+        `(progn
+           ;; here we process all the operations
+           ;; in simpler-ops
+           (dolist (,simple-op ,simpler-ops)
+             ;; push the current op into ops-list
+             (push ,simple-op ops-list)
+             ;; simulate the operation
+             (simulate-neighborhood-operation
+              ,simple-op ,working-copy))))
+      #+END_SRC
+****** tests
+       Let'm make some simple tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((simple-op :s-op23)
+              (ops-list `(:op1 :op2 :op3))
+              (simpler-ops :s-ops69)
+              (working-copy :wc48))
+
+         (declare (special simple-op simpler-ops ops-list working-copy))
+
+         (bformat t "Testing make-simulate-simpler-ops-code")
+         (format t "make-simulate-simpler-ops-code:~%~a~%"
+                 (make-simulate-simpler-ops-code t t)))
+
+
+       #+END_SRC
+**** make-undo-simpler-ops-code
+***** description
+      This function returns the code to be inserted to undo all simpler-ops after we have executed the user's code.  This is in the context of the make-do-neighborhood-macro.
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-undo-simpler-ops-code (operation working-copy)
+       (:documentation "Returns code to undo all the simpler-ops in the neighborhood."))
+     #+END_SRC
+***** method (t t )
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-undo-simpler-ops-code (op wc)
+       "This method returns the code to be inserted to undo all simpler-ops after we have executed the user's code.  This is in the context of the make-do-neighborhood-macro."
+
+       (declare (special ops-list simpler-ops simple-op working-copy))
+
+       `(progn
+          ;; here we undo all the operations in
+          ;; simpler-ops:
+          (dolist (,simple-op (reverse ,simpler-ops))
+            ;; pop the op from the list of operations
+            (pop ops-list)
+            ;; undo the operation
+            (undo-neighborhood-operation ,simple-op ,working-copy))))
+     #+END_SRC
+***** tests
+      Let'm make some simple tests
+      #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+      (let* ((simpler-ops :sops21)
+             (ops-list `(:sop1 :sop2))
+             (simple-op :sop14)
+             (working-copy :wc61))
+
+        (declare (special simple-op simpler-ops ops-list working-copy))
+
+
+        (bformat t "Testing make-undo-simpler-ops-code")
+        (format t "make-undo-simpler-ops-code~% ~a~%"
+                (make-undo-simpler-ops-code t t)))
+
+
+      #+END_SRC
+
+**** make-compute-route-end-code
+***** description
+      When writing the code for a do-neighborhood-operation macro that traverse a route (such as doselect-client or doinsert-client) it is necessary to compute how far into route we should repeat the operation.
+
+      For instance, in the case of the select-client, we should traverse the route up to the last position, because we can select all the clients in the route including the last one.  In the case of an client-insertion, we should traverse the list up to one position more than the route length because we can insert at the end of the route.  If we are dealing with a select-subroute, then we can select from the subroute up to the position =route-length - subroute-length + 1=, because we need to select the subroutes with a fixed length.
+
+      This function returns the code to compute the last position to do the operation according to the operation we are dealing with.  On a first approach I'm going to make it a generic function.
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-compute-route-end-code (operation working-copy)
+       (:documentation "Returns an expression to compute the last position in a route to repeat the operation `operation' in a do-neighborhood-operation macro."))
+     #+END_SRC
+***** method (operation-select-client basic-working-copy)
+****** code
+      #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+      (defmethod make-compute-route-end-code
+          ((op operation-select-client) (wc basic-working-copy))
+        "Returns an expression to compute the last position in a route to repeat the operation `operation' in a do-neighborhood-operation macro. If the operation is a select-client, then we need to iterate up to the last position in the route."
+
+        (declare (special pos route working-copy))
+  
+        ;; return the following line 
+        `(for ,pos from 1 to (route-length ,route ,working-copy)))
+      #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((pos :pos23)
+              (route :route56)
+              (working-copy :working-copy28)
+              (op (op-select-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special pos route working-copy))
+
+         (bformat t "Testing make-compute-route-end-code")
+         (format t "  make-compute-route-end-code~%  ~a~%"
+                 (make-compute-route-end-code op wcopy)))
+
+
+       #+END_SRC
+
+***** method (operation-insert-client basic-working-copy)
+     #+begin_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-compute-route-end-code
+         ((op operation-insert-client) (wc basic-working-copy))
+       "Returns an expression to compute the last position in a route to repeat the operation `operation' in a do-neighborhood-operation macro. If the operation is insert-client, then we need to iterate up to the 1 more than the last position in the route, because we can insert at the end."
+  
+       (declare (special pos route working-copy))
+  
+       ;; return the following line 
+       `(for ,pos from 1 to (1+ (route-length ,route ,working-copy))))
+     #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((pos :pos23)
+              (route :route56)
+              (working-copy :working-copy28)
+              (op (op-insert-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special pos route working-copy))
+
+
+         (bformat t "Testing make-compute-route-end-code")
+         (format t "  make-compute-route-end-code~%  ~a~%"
+                 (make-compute-route-end-code op wcopy)))
+
+
+       #+END_SRC
+**** make-op-instance-code
+***** description
+      When writing the code for a do-neighborhood-operation macro one of the most important parts is the creation of the operation's instance.
+
+      - In the case of the select-client, before we create the class, we need to bind cname to =(1+ (selections-count ,working-copy))= and then use that value as an argument te op-select-client.
+
+      - In the case of an insert-client operation we don't bind =cname= and in the constructor of the operation we just use the value that the user passed to us in =cname=.
+
+      - In the case of a select-subroute, we need to bind =cname= to =(1+ (selections-count ,working-copy))=, and we need to pass to the constructor the size of the subroute.
+
+      The idea is that the function that we are going to create in this section will deal with this aspects, and will return the code to insert in the loop in the corresponding do-neighborhood-operation macro.
+
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-op-instance-code (operation working-copy)
+       (:documentation "Returns the expressions needed to create the instance of an operation `operation' in a do-neighborhood-operation macro."))
+     #+END_SRC
+***** method (operation-select-client basic-working-copy)
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+          (defmethod make-op-instance-code
+              ((operation operation-select-client) (wc basic-working-copy))
+            "Returns an expression to create an instance of the operation-select-client to be used in a do-neighborhood-operation macro."
+
+            (declare (special cname op pos route working-copy))
+  
+            ;; return the following lines
+       
+            `(for ,cname = (1+ (selections-count ,working-copy))
+              for ,op = (op-select-client ,route ,pos ,cname)))
+     #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((pos :pos23)
+              (route :route56)
+              (working-copy :working-copy28)
+              (cname :name32)
+              (op :op78)
+              (op0 (op-select-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special cname op pos route working-copy))
+
+         (bformat t "Testing make-compute-route-end-code")
+
+         (format t " make-op-instance-code~%  ~a~%"
+                 (make-op-instance-code op0 wcopy)))
+
+
+       #+END_SRC
+     
+***** method (operation-insert-client basic-working-copy)
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-op-instance-code
+         ((operation operation-insert-client)
+          (wc basic-working-copy))
+       "Returns an expression to create an instance of the operation-insert-client to be used in a do-neighborhood-operation macro."
+
+       (declare (special cname op pos route))
+
+       ;; return the following lines
+       `(for ,op = (op-insert-client ,route ,pos ,cname)))
+     #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((pos :pos23)
+              (route :route56)
+              (op :op45)
+              (cname :c1)
+              (op0 (op-insert-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special cname op pos route))
+         (bformat t "Testing make-compute-route-end-code")
+         (format t "  make-op-instance-code~%  ~a~%"
+                 (make-op-instance-code op0 wcopy)))
+
+
+       #+END_SRC
+**** make-get-simpler-ops-and-stop-code
+***** description
+      In this section we create the function that creates the simpler-ops for a given op and checks if the variable *vrp-stop-neighborhood-search* is nil.  This is a generic function, but so far it will be specialized on (t t) because so far, that code is always the same.
+
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-get-simpler-ops-and-stop-code
+         (operation working-copy)
+       (:documentation "Returns the expressions needed to create the simpler operations and check the value of the variable *vrp-stop-neighborhood-search*."))
+     #+END_SRC
+***** method (operation-select-client basic-working-copy)
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-get-simpler-ops-and-stop-code 
+         (operation wc)
+       "Returns the code to create the simpler-ops from a neighborhood-operation and the code to stop the iteration in case the user changes the value of *vrp-stop-neighborhood-search*."
+
+       (declare (special simpler-ops op working-copy))
+
+         `(for ,simpler-ops = (get-simpler-operations-from
+                                       ,op ,working-copy)
+               ;; the following line allows the final user
+               ;; to stop the iteration by setting that
+               ;; variable to t
+               while (not *vrp-stop-neighborhood-search*)))
+     #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((simpler-ops :s-pos23)
+              (working-copy :working-copy28)
+              (op :op48)
+              (op0 (op-select-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special simpler-ops op working-copy))
+         (bformat t "Testing make-get-simpler-ops-and-stop-code")
+         (format t "  make-get-simpler-ops-and-stop-code:~%  ~a~%"
+                 (make-get-simpler-ops-and-stop-code op0 wcopy)))
+
+
+       #+END_SRC
+
+* WIP A macro to programatically generate the do-neighborhood macros  :dcost:
+** code with generic (special) functions to generate code
+*** description
+    In this approach I'm going to try to generate fragments of the code dynamically from generic functions.
+*** code v2 (again)
+    #+BEGIN_SRC lisp +n -r :results none :exports code
+    (defmacro make-do-neighborhood-route-operation%% (macro-name
+                                                     (&rest args)
+                                                     &key
+                                                       op-name
+                                                       op0-params
+                                                       wc-name
+                                                       wc0-params
+                                                       example-str)
+      ;;{{{ documentation
+      "Creates a do-neighborhood macro for a selection. The created macro searches the neighborhood in an exhaustive way.
+
+    There will always be a gensym named `pos' that will iterate through all the positions in the route. One of the parameter passed by the user should be named `route'.
+
+    The arguments are:
+
+       - macro-name :: the name of the macro.
+       - args :: the args that the created macro will receive.
+                 Apparently we'll always need parameters named `cname',
+                 `route', and `working-copy'.
+                  - `cname' should be a symbol that will be bound to
+                    (1+ (selections-count working-copy).
+                  - `route' should be a number with the id of a route
+                     in the working-copy, where the selections should
+                     take place.
+       - op-name :: the constructor of the neighborhood operation to use.
+       - op-params :: the params that should be passed to the constructor
+                      of the operation.
+       - example-str ::  this is a string to add to the description of the macro with an intended usage example." ;;;}}}
+
+      (let* ((comment-str (format nil "Iterates through each position in the given route, creates an instance of ~a, pushes it int ops-lists, simulates it, do whatever the users wants to do, and finally restores everything to the previous state.
+    Example:
+       ~a" op-name example-str))
+             (gensyms-list `(pos op simpler-ops simple-op)))
+
+        ;; here starts the code for the macro
+        `(defmacro ,macro-name (,args &body body)
+           ,comment-str
+
+           (with-gensyms ,gensyms-list
+             (declare (special ,@gensyms-list ,@args))
+             (declare (ignorable ,@gensyms-list ,@args))
+
+             (let* ( ;; we add instances to use the
+                    ;; generic functions below
+
+                    (op0 (,op-name ,@op0-params))
+                    (wc0 (,wc-name ,@wc0-params))
+                    (simulate-simpler-ops
+                     ;; first let's create the code to simulate the ops
+                     (make-simulate-simpler-ops-code op0 wc0))
+                    ;; and the code to undo the previous simulations
+                    (undo-simpler-ops
+                     (make-undo-simpler-ops-code op0 wc0))
+                    ;; add the code to compute how far into
+                    ;; the route we should go doing the op
+                    (compute-route-end-code
+                     (make-compute-route-end-code op0 wc0))
+                    ;; add the code to create the instance
+                    ;; of the op that will be simulated
+                    (op-instance-initialization
+                     (make-op-instance-code op0 wc0))
+                    ;; add the code to 
+                    (get-simpler-ops-and-stop-code 
+                     (make-get-simpler-ops-and-stop-code op0 wc0))
+                    )
+
+               `(loop
+                 ,@compute-route-end-code
+                 ,@op-instance-initialization
+
+                 ;; we get the simpler-ops and
+                 ;; check that *vrp-stop-neighborhood-search* is nil
+                 ,@get-simpler-ops-and-stop-code
+
+
+                 ;; here I want to add some code to execute it
+                 ;; before the simulation of the operation
+                 ;; but I'm not yet sure about how to do it right :-/
+
+                 ;; now the simulation
+                 do ,simulate-simpler-ops
+                 ;; let's do what the user wants
+                 do (progn ,@body)
+                 ;; now the clean up
+                 do ,undo-simpler-ops
+                 ))))))
+    #+END_SRC
+*** code v1(didn't work)
+    #+BEGIN_SRC lisp +n -r :results none :exports code
+    (defmacro make-do-neighborhood-route-operation% (macro-name
+                                                     (&rest args)
+                                                     &key
+                                                       op-name
+                                                       op0-params
+                                                       wc-name
+                                                       wc0-params
+                                                       example-str)
+      ;;{{{ documentation
+      "Creates a do-neighborhood macro for a selection. The created macro searches the neighborhood in an exhaustive way.
+
+    There will always be a gensym named `pos' that will iterate through all the positions in the route. One of the parameter passed by the user should be named `route'.
+
+    The arguments are:
+
+       - macro-name :: the name of the macro.
+       - args :: the args that the created macro will receive.
+                 Apparently we'll always need parameters named `cname',
+                 `route', and `working-copy'.
+                  - `cname' should be a symbol that will be bound to
+                    (1+ (selections-count working-copy).
+                  - `route' should be a number with the id of a route
+                     in the working-copy, where the selections should
+                     take place.
+       - op-name :: the constructor of the neighborhood operation to use.
+       - op-params :: the params that should be passed to the constructor
+                      of the operation.
+       - example-str ::  this is a string to add to the description of the macro with an intended usage example." ;;;}}}
+
+      (let* ((comment-str (format nil "Iterates through each position in the given route, creates an instance of ~a, pushes it int ops-lists, simulates it, do whatever the users wants to do, and finally restores everything to the previous state.
+    Example:
+       ~a" op-name example-str))
+             (gensyms-list `(pos op simpler-ops simple-op)))
+
+        `(with-gensyms ,gensyms-list
+           ;; let's declare all the special variables
+           ;; these are all the gensyms and all the args.
+           ;; this way all the methods can access
+           ;; anything they need (hopefully)
+
+           ;; first we declare all the args in a let
+           ;; to be able to `declare' them. 
+           (let* ,(mapcar (lambda (x) `(,x ',x)) args)
+             (declare (special ,@gensyms-list ,@args))
+
+
+             (let* ( ;; we add instances to use the
+                    ;; generic functions below
+                    (op0 (,op-name ,@op0-params))
+                    (wc0 (,wc-name ,@wc0-params))
+                    (simulate-simpler-ops
+                     ;; first let's create the code to simulate the ops
+                     (make-simulate-simpler-ops-code op0 wc0))
+                    ;; and the code to undo the previous simulations
+                    (undo-simpler-ops 
+                     (make-undo-simpler-ops-code op0 wc0))
+                    ;; add the code to compute how far into
+                    ;; the route we should go doing the op
+                    (compute-route-end-code
+                     (make-compute-route-end-code op0 wc0))
+                    ;; add the code to create the instance
+                    ;; of the op that will be simulated
+                    (op-instance-initialization
+                     (make-op-instance-code op0 wc0))
+                    ;; add the code to 
+                    (get-simpler-ops-and-stop-code 
+                     (make-get-simpler-ops-and-stop-code op0 wc0))
+                    )
+
+               ;; here starts the code for the macro
+               (defmacro ,macro-name (,args &body body)
+                 ,comment-str
+
+                 `(loop
+                   ,@compute-route-end-code
+                   ,@op-instance-initialization
+
+                   ;; we get the simpler-ops and
+                   ;; check that *vrp-stop-neighborhood-search* is nil
+                   ,@get-simpler-ops-and-stop-code
+
+
+                   ;; here I want to add some code to execute it
+                   ;; before the simulation of the operation
+                   ;; but I'm not yet sure about how to do it right :-/
+
+                   ;; now the simulation
+                   do ,simulate-simpler-ops
+                   ;; let's do what the user wants
+                   do (progn ,@body)
+                   ;; now the clean up
+                   do ,undo-simpler-ops
+                   )))))))
+    #+END_SRC
+*** code v0 (original)
+    #+BEGIN_SRC lisp +n -r :results none :exports code
+    (defmacro make-do-neighborhood-route-operation% (macro-name
+                                                     (&rest args)
+                                                     &key
+                                                       op-name
+                                                       op0-params
+                                                       wc-name
+                                                       wc0-params
+                                                       example-str)
+      ;;{{{ documentation
+      "Creates a do-neighborhood macro for a selection. The created macro searches the neighborhood in an exhaustive way.
+
+    There will always be a gensym named `pos' that will iterate through all the positions in the route. One of the parameter passed by the user should be named `route'.
+
+    The arguments are:
+
+       - macro-name :: the name of the macro.
+       - args :: the args that the created macro will receive.
+                 Apparently we'll always need parameters named `cname',
+                 `route', and `working-copy'.
+                  - `cname' should be a symbol that will be bound to
+                    (1+ (selections-count working-copy).
+                  - `route' should be a number with the id of a route
+                     in the working-copy, where the selections should
+                     take place.
+       - op-name :: the constructor of the neighborhood operation to use.
+       - op-params :: the params that should be passed to the constructor
+                      of the operation.
+       - example-str ::  this is a string to add to the description of the macro with an intended usage example." ;;;}}}
+
+      (let* ((comment-str (format nil "Iterates through each position in the given route, creates an instance of ~a, pushes it int ops-lists, simulates it, do whatever the users wants to do, and finally restores everything to the previous state.
+    Example:
+       ~a" op-name example-str))
+             (gensyms-list `(pos op simpler-ops simple-op)))
+
+        ;; here starts the code for the macro
+        `(defmacro ,macro-name (,args &body body)
+           ,comment-str
+
+           (with-gensyms ,gensyms-list
+
+             (let* ( ;; we add instances to use the
+                    ;; generic functions below
+
+                    (op0 (,op-name ,@op0-params))
+                    (wc0 (,wc-name ,@wc0-params))
+                    (simulate-simpler-ops
+                     ;; first let's create the code to simulate the ops
+                     (make-simulate-simpler-ops-code
+                      simple-op simpler-ops working-copy))
+                    ;; and the code to undo the previous simulations
+                    (undo-simpler-ops
+                     (make-undo-simpler-ops-code
+                      simple-op simpler-ops working-copy))
+                    ;; add the code to compute how far into
+                    ;; the route we should go doing the op
+                    (compute-route-end-code
+                     (funcall
+                      (make-compute-route-end-code op0 wc0)
+                      pos route working-copy))
+                    ;; add the code to create the instance
+                    ;; of the op that will be simulated
+                    (op-instance-initialization
+                     (funcall (make-op-instance-code op0 wc0) 
+                              route pos cname op working-copy))
+                    ;; add the code to 
+                    (get-simpler-ops-and-stop-code 
+                     (funcall (make-get-simpler-ops-and-stop-code
+                               op0 wc0) 
+                              simpler-ops op working-copy))
+                    )
+
+               `(loop
+                 ,@compute-route-end-code
+                 ,@op-instance-initialization
+
+                 ;; we get the simpler-ops and
+                 ;; check that *vrp-stop-neighborhood-search* is nil
+                 ,@get-simpler-ops-and-stop-code
+
+
+                 ;; here I want to add some code to execute it
+                 ;; before the simulation of the operation
+                 ;; but I'm not yet sure about how to do it right :-/
+
+                 ;; now the simulation
+                 do ,simulate-simpler-ops
+                 ;; let's do what the user wants
+                 do (progn ,@body)
+                 ;; now the clean up
+                 do ,undo-simpler-ops
+                 ))))))
+    #+END_SRC
+** tests for the previous code
+*** testing macroexpansion
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+    (let* ((ops-list nil))
+      (format-boxed t "Testing make-do-neighborhood-selection")
+
+      (pp-expand (make-do-neighborhood-route-operation%
+                           doselect-client%%
+                           (cname route working-copy)
+                           :op-name op-select-client
+                           :op0-params (0 0 0)
+                           :wc-name basic-working-copy
+                           :wc0-params (nil)
+                           :example-str "(doselect-client (c1 r1 wc1)
+                (format t \"Selecting client ~a from route ~a~%\"
+                 (client-selected-at-operation c1)
+                 (get-route-with-id r1 wc1)))")))
+    #+END_SRC
+
+*** testing code
+**** op-select first example from hand-made doselect-client
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+     (progn
+
+       (make-do-neighborhood-route-operation%%
+        doselect-client%%%
+        (cname route working-copy)
+        :op-name op-select-client
+        :op0-params (0 0 0)
+        :wc-name basic-working-copy
+        :wc0-params (nil)
+        :example-str "(doselect-client (c1 r1 wc1)
+                (format t \"Selecting client ~a from route ~a~%\"
+                 (client-selected-at-operation c1)
+                 (get-route-with-id r1 wc1)))")
+
+      (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+        (let* ((wc (basic-working-copy s1))
+               (ops-list nil))
+
+          (prepare-solution-for-neighborhood-exploration wc)
+
+          (format-boxed t "Testing doselect-route2 with simpler-ops")
+          (doselect-client%%% (c1 2 wc)
+                            (format t "Selected client: ~a~%"
+                                    (client-selected-at-operation c1 wc))
+                            (pp-solution wc t) (terpri)))))
+     #+END_SRC
+
+**** op-select first example with two selections
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+     (progn
+       (make-do-neighborhood-route-selection%
+        doselect-client%%
+        (cname route working-copy)
+        :op-name op-select-client
+        :op0-params (0 0 0)
+        :wc-name basic-working-copy
+        :wc0-params (nil)
+        :example-str "(doselect-client (c1 r1 wc1)
+        (format t \"Selecting client ~a from route ~a~%\"
+         (client-selected-at-operation c1)
+         (get-route-with-id r1 wc1)))")
+
+      (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+        (let* ((wc (basic-working-copy s1))
+               (ops-list nil))
+
+          (prepare-solution-for-neighborhood-exploration wc)
+
+          (format-boxed t "Testing doselect-route2")
+          (doselect-client%% (c1 1 wc)
+            (doselect-client%% (c2 1 wc)
+              (format t "Selected clients: ~a and ~a~%"
+                      (client-selected-at-operation c1 wc)
+                      (client-selected-at-operation c2 wc))
+              (pp-solution wc t) (terpri))))))
+     #+END_SRC
+**** op-insert first example from hand-made doselect-client
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+     (progn
+
+       (make-do-neighborhood-route-selection%
+        doinsert-client%%
+        (cname route working-copy)
+        :op-name op-insert-client
+        :op0-params (0 0 0)
+        :wc-name basic-working-copy
+        :wc0-params (nil)
+        :example-str "(doinsert-client (c1 r1 wc1)
+                (format t \"Inserting client ~a into route ~a~%\"
+                 (client-selected-at-operation c1)
+                 (get-route-with-id r1 wc1)))")
+
+      (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+        (let* ((wc (basic-working-copy s1))
+               (c1 0)
+               (op1 (op-select-client 2 4 c1))
+               (ops-list nil))
+
+          (prepare-solution-for-neighborhood-exploration wc)
+          (simulate-neighborhood-operation op1 wc)
+
+          (format-boxed t "Testing doinsert-client%%")
+          (doinsert-client%% (c1 1 wc)
+            (format t "Inserting client: ~a at pos~%"
+                    (client-selected-at-operation c1 wc))
+            (pp-solution wc t) (terpri)))))
+     #+END_SRC
+
+**** op-insert first example with two selections
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+     (progn
+       (make-do-neighborhood-route-selection%
+        doinsert-client%%
+        (cname route working-copy)
+        :op-name op-insert-client
+        :op0-params (0 0 0)
+        :wc-name basic-working-copy
+        :wc0-params (nil)
+        :example-str "(doselect-client (c1 r1 wc1)
+        (format t \"Selecting client ~a from route ~a~%\"
+         (client-selected-at-operation c1)
+         (get-route-with-id r1 wc1)))")
+
+      (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+        (let* ((wc (basic-working-copy s1))
+               (c1 0) (c2 1)
+               (op1 (op-select-client 2 4 c1))
+               (op2 (op-select-client 2 1 c2))
+               (ops-list nil))
+
+          (prepare-solution-for-neighborhood-exploration wc)
+          (simulate-neighborhood-operation op1 wc)
+          (simulate-neighborhood-operation op2 wc)
+     
+          (format-boxed t "Testing doinsert-route%%")
+          (doinsert-client%% (c1 1 wc)
+            (doinsert-client%% (c2 1 wc)
+              (format t "Selected clients: ~a and ~a~%"
+                      (client-selected-at-operation c1 wc)
+                      (client-selected-at-operation c2 wc))
+              (pp-solution wc t) (terpri))))))
+     #+END_SRC
+    
+* WIP macros to insert the fixed parts on the macros                  :dcost:
+** make-compute-route-end-code
+*** description
+    When writing the code for a do-neighborhood-operation macro that traverse a route (such as doselect-client or doinsert-client) it is necessary to compute how far into route we should repeat the operation.
+
+    For instance, in the case of the select-client, we should traverse the route up to the last position, because we can select all the clients in the route including the last one.  In the case of an client-insertion, we should traverse the list up to one position more than the route length because we can insert at the end of the route.  If we are dealing with a select-subroute, then we can select from the subroute up to the position =route-length - subroute-length + 1=, because we need to select the subroutes with a fixed length.
+
+    This function returns the code to compute the last position to do the operation according to the operation we are dealing with.  On this approach I'm going to make it a macro.
+*** code (select-client)
+   #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+   (defmacro make-compute-route-end-code ()
+     "Returns an expression to compute the last position in a route to repeat the operation `operation' in a do-neighborhood-operation macro. If the operation is a select-client, then we need to iterate up to the last position in the route."
+
+     `(for ,pos from 1 to (route-length ',route ',working-copy)))
+   #+END_SRC
+*** tests
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+    (let* ((pos :pos23)
+           (route :route56)
+           (working-copy :working-copy28)
+           (op (op-select-client 1 1 0))
+           (wcopy (basic-working-copy nil)))
+
+      (declare (special pos route working-copy))
+
+      (bformat t "Testing make-compute-route-end-code")
+      (format t "  make-compute-route-end-code~%  ~a~%"
+              (make-compute-route-end-code op wcopy)))
+
+
+    #+END_SRC
+
+*** method (operation-insert-client basic-working-copy)
+   #+begin_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+   (defmethod make-compute-route-end-code
+       ((op operation-insert-client) (wc basic-working-copy))
+     "Returns an expression to compute the last position in a route to repeat the operation `operation' in a do-neighborhood-operation macro. If the operation is insert-client, then we need to iterate up to the 1 more than the last position in the route, because we can insert at the end."
+  
+     (declare (special pos route working-copy))
+  
+     ;; return the following line 
+     `(for ,pos from 1 to (1+ (route-length ,route ,working-copy))))
+   #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+     (let* ((pos :pos23)
+            (route :route56)
+            (working-copy :working-copy28)
+            (op (op-insert-client 1 1 0))
+            (wcopy (basic-working-copy nil)))
+
+       (declare (special pos route working-copy))
+
+
+       (bformat t "Testing make-compute-route-end-code")
+       (format t "  make-compute-route-end-code~%  ~a~%"
+               (make-compute-route-end-code op wcopy)))
+
+
+     #+END_SRC
+** make-simulate-simpler-ops-code
+*** description
+    This macro returns the code to be inserted in the do-neighborhood-operation macros to process all simpler-ops than can be obtained from a given neighborhood operation.
+*** code
+   #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+   (defmacro make-simulate-simpler-ops-code ()
+     "This macro returns the code to be inserted in the do-neighborhood-operation macros to process all simpler-ops than can be obtained from a given neighborhood operation."
+
+     `(progn
+        ;; here we process all the operations
+        ;; in simpler-ops
+        (dolist (simple-op simpler-ops)
+          ;; push the current op into ops-list
+          (push simple-op ops-list)
+          ;; simulate the operation
+          (simulate-neighborhood-operation
+           simple-op working-copy))))
+   #+END_SRC
+*** tests
+    Let'm make some simple tests
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+    (let* ((simple-op :s-op23)
+           (ops-list `(:op1 :op2 :op3))
+           (simpler-ops :s-ops69)
+           (working-copy :wc48))
+
+      (bformat t "Testing make-simulate-simpler-ops-code")
+      (format t "make-simulate-simpler-ops-code:~%~a~%"
+              (make-simulate-simpler-ops-code)))
+
+
+    #+END_SRC
+** make-undo-simpler-ops-code
+*** description
+    This macro returns the code to be inserted to undo all simpler-ops after we have executed the user's code.  This is in the context of the make-do-neighborhood-macro.
+*** method (t t )
+   #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+   (defmethod make-undo-simpler-ops-code (op wc)
+     "This method returns the code to be inserted to undo all simpler-ops after we have executed the user's code.  This is in the context of the make-do-neighborhood-macro."
+
+     (declare (special ops-list simpler-ops simple-op working-copy))
+
+     `(progn
+        ;; here we undo all the operations in
+        ;; simpler-ops:
+        (dolist (,simple-op (reverse ,simpler-ops))
+          ;; pop the op from the list of operations
+          (pop ops-list)
+          ;; undo the operation
+          (undo-neighborhood-operation ,simple-op ,working-copy))))
+   #+END_SRC
+*** tests
+    Let'm make some simple tests
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+    (let* ((simpler-ops :sops21)
+           (ops-list `(:sop1 :sop2))
+           (simple-op :sop14)
+           (working-copy :wc61))
+
+      (declare (special simple-op simpler-ops ops-list working-copy))
+
+
+      (bformat t "Testing make-undo-simpler-ops-code")
+      (format t "make-undo-simpler-ops-code~% ~a~%"
+              (make-undo-simpler-ops-code t t)))
+
+
+    #+END_SRC
+** make-op-instance-code
+*** description
+    When writing the code for a do-neighborhood-operation macro one of the most important parts is the creation of the operation's instance.
+
+    - In the case of the select-client, before we create the class, we need to bind cname to =(1+ (selections-count ,working-copy))= and then use that value as an argument te op-select-client.
+
+    - In the case of an insert-client operation we don't bind =cname= and in the constructor of the operation we just use the value that the user passed to us in =cname=.
+
+    - In the case of a select-subroute, we need to bind =cname= to =(1+ (selections-count ,working-copy))=, and we need to pass to the constructor the size of the subroute.
+
+    The idea is that the function that we are going to create in this section will deal with this aspects, and will return the code to insert in the loop in the corresponding do-neighborhood-operation macro.
+
+*** generic-function
+   #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+   (defgeneric make-op-instance-code (operation working-copy)
+     (:documentation "Returns the expressions needed to create the instance of an operation `operation' in a do-neighborhood-operation macro."))
+   #+END_SRC
+*** method (operation-select-client basic-working-copy)
+   #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+        (defmethod make-op-instance-code
+            ((operation operation-select-client) (wc basic-working-copy))
+          "Returns an expression to create an instance of the operation-select-client to be used in a do-neighborhood-operation macro."
+
+          (declare (special cname op pos route working-copy))
+  
+          ;; return the following lines
+       
+          `(for ,cname = (1+ (selections-count ,working-copy))
+            for ,op = (op-select-client ,route ,pos ,cname)))
+   #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+     (let* ((pos :pos23)
+            (route :route56)
+            (working-copy :working-copy28)
+            (cname :name32)
+            (op :op78)
+            (op0 (op-select-client 1 1 0))
+            (wcopy (basic-working-copy nil)))
+
+       (declare (special cname op pos route working-copy))
+
+       (bformat t "Testing make-compute-route-end-code")
+
+       (format t " make-op-instance-code~%  ~a~%"
+               (make-op-instance-code op0 wcopy)))
+
+
+     #+END_SRC
+     
+*** method (operation-insert-client basic-working-copy)
+   #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+   (defmethod make-op-instance-code
+       ((operation operation-insert-client)
+        (wc basic-working-copy))
+     "Returns an expression to create an instance of the operation-insert-client to be used in a do-neighborhood-operation macro."
+
+     (declare (special cname op pos route))
+
+     ;; return the following lines
+     `(for ,op = (op-insert-client ,route ,pos ,cname)))
+   #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+     (let* ((pos :pos23)
+            (route :route56)
+            (op :op45)
+            (cname :c1)
+            (op0 (op-insert-client 1 1 0))
+            (wcopy (basic-working-copy nil)))
+
+       (declare (special cname op pos route))
+       (bformat t "Testing make-compute-route-end-code")
+       (format t "  make-op-instance-code~%  ~a~%"
+               (make-op-instance-code op0 wcopy)))
+
+
+     #+END_SRC
+** make-get-simpler-ops-and-stop-code
+*** description
+    In this section we create the function that creates the simpler-ops for a given op and checks if the variable *vrp-stop-neighborhood-search* is nil.  This is a generic function, but so far it will be specialized on (t t) because so far, that code is always the same.
+
+*** generic-function
+   #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+   (defgeneric make-get-simpler-ops-and-stop-code
+       (operation working-copy)
+     (:documentation "Returns the expressions needed to create the simpler operations and check the value of the variable *vrp-stop-neighborhood-search*."))
+   #+END_SRC
+*** method (operation-select-client basic-working-copy)
+   #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+   (defmethod make-get-simpler-ops-and-stop-code 
+       (operation wc)
+     "Returns the code to create the simpler-ops from a neighborhood-operation and the code to stop the iteration in case the user changes the value of *vrp-stop-neighborhood-search*."
+
+     (declare (special simpler-ops op working-copy))
+
+       `(for ,simpler-ops = (get-simpler-operations-from
+                                     ,op ,working-copy)
+             ;; the following line allows the final user
+             ;; to stop the iteration by setting that
+             ;; variable to t
+             while (not *vrp-stop-neighborhood-search*)))
+   #+END_SRC
+**** tests
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+     (let* ((simpler-ops :s-pos23)
+            (working-copy :working-copy28)
+            (op :op48)
+            (op0 (op-select-client 1 1 0))
+            (wcopy (basic-working-copy nil)))
+
+       (declare (special simpler-ops op working-copy))
+       (bformat t "Testing make-get-simpler-ops-and-stop-code")
+       (format t "  make-get-simpler-ops-and-stop-code:~%  ~a~%"
+               (make-get-simpler-ops-and-stop-code op0 wcopy)))
+
+
+     #+END_SRC
+* WIP A macro to programatically generate the do-neighborhood macros  :dcost:
+* code with generic (special) functions to generate code
+** description
+   In this approach I'm going to try to generate fragments of the code dynamically from other macros.  The idea is to avoid code duplication, so now I'm going to insert in the macro the call to other macros.
+** code v3 (with macros)
+   #+BEGIN_SRC lisp +n -r :results none :exports code
+   (defmacro make-do-neighborhood-route-operation%% (macro-name
+                                                    (&rest args)
+                                                    &key
+                                                      op-name
+                                                      example-str)
+     ;;{{{ documentation
+     "Creates a do-neighborhood macro for a selection. The created macro searches the neighborhood in an exhaustive way.
+
+   There will always be a gensym named `pos' that will iterate through all the positions in the route. One of the parameter passed by the user should be named `route'.
+
+   The arguments are:
+
+      - macro-name :: the name of the macro.
+      - args :: the args that the created macro will receive.
+                Apparently we'll always need parameters named `cname',
+                `route', and `working-copy'.
+                 - `cname' should be a symbol that will be bound to
+                   (1+ (selections-count working-copy).
+                 - `route' should be a number with the id of a route
+                    in the working-copy, where the selections should
+                    take place.
+      - op-name :: the constructor of the neighborhood operation to use.
+      - op-params :: the params that should be passed to the constructor
+                     of the operation.
+      - example-str ::  this is a string to add to the description of the macro with an intended usage example." ;;;}}}
+
+   ;;   (let* ((comment-str (format nil "Iterates through each position in the given route, creates an instance of ~a, pushes it int ops-lists, simulates it, do whatever the users wants to do, and finally restores everything to the previous state.
+   ;; Example:
+   ;;    ~a" op-name example-str))
+         
+
+       ;; here starts the code for the macro
+       `(defmacro ,macro-name (,args &body body)
+          ;; ,comment-str
+          "no comment"
+
+          (with-gensyms (pos op simpler-ops simple-op)
+            (loop
+             ,@(make-compute-route-end-code)
+             do (print 1)
+                ;; ,@op-instance-initialization
+
+             ;;    ;; we get the simpler-ops and
+             ;;    ;; check that *vrp-stop-neighborhood-search* is nil
+             ;;    ,@get-simpler-ops-and-stop-code
+
+
+             ;;    ;; here I want to add some code to execute it
+             ;;    ;; before the simulation of the operation
+             ;;    ;; but I'm not yet sure about how to do it right :-/
+
+             ;;    ;; now the simulation
+             ;; do ,(make-simulate-simpler-ops-code)
+             ;;    ;; let's do what the user wants
+             ;;    do (progn ,@body)
+             ;;    ;; now the clean up
+             ;;    do ,undo-simpler-ops
+                ))))
+   #+END_SRC
+** code v2 (again)
+   #+BEGIN_SRC lisp +n -r :results none :exports code
+   (defmacro make-do-neighborhood-route-operation%% (macro-name
+                                                    (&rest args)
+                                                    &key
+                                                      op-name
+                                                      op0-params
+                                                      wc-name
+                                                      wc0-params
+                                                      example-str)
+     ;;{{{ documentation
+     "Creates a do-neighborhood macro for a selection. The created macro searches the neighborhood in an exhaustive way.
+
+   There will always be a gensym named `pos' that will iterate through all the positions in the route. One of the parameter passed by the user should be named `route'.
+
+   The arguments are:
+
+      - macro-name :: the name of the macro.
+      - args :: the args that the created macro will receive.
+                Apparently we'll always need parameters named `cname',
+                `route', and `working-copy'.
+                 - `cname' should be a symbol that will be bound to
+                   (1+ (selections-count working-copy).
+                 - `route' should be a number with the id of a route
+                    in the working-copy, where the selections should
+                    take place.
+      - op-name :: the constructor of the neighborhood operation to use.
+      - op-params :: the params that should be passed to the constructor
+                     of the operation.
+      - example-str ::  this is a string to add to the description of the macro with an intended usage example." ;;;}}}
+
+     (let* ((comment-str (format nil "Iterates through each position in the given route, creates an instance of ~a, pushes it int ops-lists, simulates it, do whatever the users wants to do, and finally restores everything to the previous state.
+   Example:
+      ~a" op-name example-str))
+            (gensyms-list `(pos op simpler-ops simple-op)))
+
+       ;; here starts the code for the macro
+       `(defmacro ,macro-name (,args &body body)
+          ,comment-str
+
+          (with-gensyms ,gensyms-list
+            (declare (special ,@gensyms-list ,@args))
+            (declare (ignorable ,@gensyms-list ,@args))
+
+            (let* ( ;; we add instances to use the
+                   ;; generic functions below
+
+                   (op0 (,op-name ,@op0-params))
+                   (wc0 (,wc-name ,@wc0-params))
+                   (simulate-simpler-ops
+                    ;; first let's create the code to simulate the ops
+                    (make-simulate-simpler-ops-code op0 wc0))
+                   ;; and the code to undo the previous simulations
+                   (undo-simpler-ops
+                    (make-undo-simpler-ops-code op0 wc0))
+                   ;; add the code to compute how far into
+                   ;; the route we should go doing the op
+                   (compute-route-end-code
+                    (make-compute-route-end-code op0 wc0))
+                   ;; add the code to create the instance
+                   ;; of the op that will be simulated
+                   (op-instance-initialization
+                    (make-op-instance-code op0 wc0))
+                   ;; add the code to 
+                   (get-simpler-ops-and-stop-code 
+                    (make-get-simpler-ops-and-stop-code op0 wc0))
+                   )
+
+              `(loop
+                ,@compute-route-end-code
+                ,@op-instance-initialization
+
+                ;; we get the simpler-ops and
+                ;; check that *vrp-stop-neighborhood-search* is nil
+                ,@get-simpler-ops-and-stop-code
+
+
+                ;; here I want to add some code to execute it
+                ;; before the simulation of the operation
+                ;; but I'm not yet sure about how to do it right :-/
+
+                ;; now the simulation
+                do ,simulate-simpler-ops
+                ;; let's do what the user wants
+                do (progn ,@body)
+                ;; now the clean up
+                do ,undo-simpler-ops
+                ))))))
+   #+END_SRC
+** code v1(didn't work)
+   #+BEGIN_SRC lisp +n -r :results none :exports code
+   (defmacro make-do-neighborhood-route-operation% (macro-name
+                                                    (&rest args)
+                                                    &key
+                                                      op-name
+                                                      op0-params
+                                                      wc-name
+                                                      wc0-params
+                                                      example-str)
+     ;;{{{ documentation
+     "Creates a do-neighborhood macro for a selection. The created macro searches the neighborhood in an exhaustive way.
+
+   There will always be a gensym named `pos' that will iterate through all the positions in the route. One of the parameter passed by the user should be named `route'.
+
+   The arguments are:
+
+      - macro-name :: the name of the macro.
+      - args :: the args that the created macro will receive.
+                Apparently we'll always need parameters named `cname',
+                `route', and `working-copy'.
+                 - `cname' should be a symbol that will be bound to
+                   (1+ (selections-count working-copy).
+                 - `route' should be a number with the id of a route
+                    in the working-copy, where the selections should
+                    take place.
+      - op-name :: the constructor of the neighborhood operation to use.
+      - op-params :: the params that should be passed to the constructor
+                     of the operation.
+      - example-str ::  this is a string to add to the description of the macro with an intended usage example." ;;;}}}
+
+     (let* ((comment-str (format nil "Iterates through each position in the given route, creates an instance of ~a, pushes it int ops-lists, simulates it, do whatever the users wants to do, and finally restores everything to the previous state.
+   Example:
+      ~a" op-name example-str))
+            (gensyms-list `(pos op simpler-ops simple-op)))
+
+       `(with-gensyms ,gensyms-list
+          ;; let's declare all the special variables
+          ;; these are all the gensyms and all the args.
+          ;; this way all the methods can access
+          ;; anything they need (hopefully)
+
+          ;; first we declare all the args in a let
+          ;; to be able to `declare' them. 
+          (let* ,(mapcar (lambda (x) `(,x ',x)) args)
+            (declare (special ,@gensyms-list ,@args))
+
+
+            (let* ( ;; we add instances to use the
+                   ;; generic functions below
+                   (op0 (,op-name ,@op0-params))
+                   (wc0 (,wc-name ,@wc0-params))
+                   (simulate-simpler-ops
+                    ;; first let's create the code to simulate the ops
+                    (make-simulate-simpler-ops-code op0 wc0))
+                   ;; and the code to undo the previous simulations
+                   (undo-simpler-ops 
+                    (make-undo-simpler-ops-code op0 wc0))
+                   ;; add the code to compute how far into
+                   ;; the route we should go doing the op
+                   (compute-route-end-code
+                    (make-compute-route-end-code op0 wc0))
+                   ;; add the code to create the instance
+                   ;; of the op that will be simulated
+                   (op-instance-initialization
+                    (make-op-instance-code op0 wc0))
+                   ;; add the code to 
+                   (get-simpler-ops-and-stop-code 
+                    (make-get-simpler-ops-and-stop-code op0 wc0))
+                   )
+
+              ;; here starts the code for the macro
+              (defmacro ,macro-name (,args &body body)
+                ,comment-str
+
+                `(loop
+                  ,@compute-route-end-code
+                  ,@op-instance-initialization
+
+                  ;; we get the simpler-ops and
+                  ;; check that *vrp-stop-neighborhood-search* is nil
+                  ,@get-simpler-ops-and-stop-code
+
+
+                  ;; here I want to add some code to execute it
+                  ;; before the simulation of the operation
+                  ;; but I'm not yet sure about how to do it right :-/
+
+                  ;; now the simulation
+                  do ,simulate-simpler-ops
+                  ;; let's do what the user wants
+                  do (progn ,@body)
+                  ;; now the clean up
+                  do ,undo-simpler-ops
+                  )))))))
+   #+END_SRC
+** code v0 (original)
+   #+BEGIN_SRC lisp +n -r :results none :exports code
+   (defmacro make-do-neighborhood-route-operation% (macro-name
+                                                    (&rest args)
+                                                    &key
+                                                      op-name
+                                                      op0-params
+                                                      wc-name
+                                                      wc0-params
+                                                      example-str)
+     ;;{{{ documentation
+     "Creates a do-neighborhood macro for a selection. The created macro searches the neighborhood in an exhaustive way.
+
+   There will always be a gensym named `pos' that will iterate through all the positions in the route. One of the parameter passed by the user should be named `route'.
+
+   The arguments are:
+
+      - macro-name :: the name of the macro.
+      - args :: the args that the created macro will receive.
+                Apparently we'll always need parameters named `cname',
+                `route', and `working-copy'.
+                 - `cname' should be a symbol that will be bound to
+                   (1+ (selections-count working-copy).
+                 - `route' should be a number with the id of a route
+                    in the working-copy, where the selections should
+                    take place.
+      - op-name :: the constructor of the neighborhood operation to use.
+      - op-params :: the params that should be passed to the constructor
+                     of the operation.
+      - example-str ::  this is a string to add to the description of the macro with an intended usage example." ;;;}}}
+
+     (let* ((comment-str (format nil "Iterates through each position in the given route, creates an instance of ~a, pushes it int ops-lists, simulates it, do whatever the users wants to do, and finally restores everything to the previous state.
+   Example:
+      ~a" op-name example-str))
+            (gensyms-list `(pos op simpler-ops simple-op)))
+
+       ;; here starts the code for the macro
+       `(defmacro ,macro-name (,args &body body)
+          ,comment-str
+
+          (with-gensyms ,gensyms-list
+
+            (let* ( ;; we add instances to use the
+                   ;; generic functions below
+
+                   (op0 (,op-name ,@op0-params))
+                   (wc0 (,wc-name ,@wc0-params))
+                   (simulate-simpler-ops
+                    ;; first let's create the code to simulate the ops
+                    (make-simulate-simpler-ops-code
+                     simple-op simpler-ops working-copy))
+                   ;; and the code to undo the previous simulations
+                   (undo-simpler-ops
+                    (make-undo-simpler-ops-code
+                     simple-op simpler-ops working-copy))
+                   ;; add the code to compute how far into
+                   ;; the route we should go doing the op
+                   (compute-route-end-code
+                    (funcall
+                     (make-compute-route-end-code op0 wc0)
+                     pos route working-copy))
+                   ;; add the code to create the instance
+                   ;; of the op that will be simulated
+                   (op-instance-initialization
+                    (funcall (make-op-instance-code op0 wc0) 
+                             route pos cname op working-copy))
+                   ;; add the code to 
+                   (get-simpler-ops-and-stop-code 
+                    (funcall (make-get-simpler-ops-and-stop-code
+                              op0 wc0) 
+                             simpler-ops op working-copy))
+                   )
+
+              `(loop
+                ,@compute-route-end-code
+                ,@op-instance-initialization
+
+                ;; we get the simpler-ops and
+                ;; check that *vrp-stop-neighborhood-search* is nil
+                ,@get-simpler-ops-and-stop-code
+
+
+                ;; here I want to add some code to execute it
+                ;; before the simulation of the operation
+                ;; but I'm not yet sure about how to do it right :-/
+
+                ;; now the simulation
+                do ,simulate-simpler-ops
+                ;; let's do what the user wants
+                do (progn ,@body)
+                ;; now the clean up
+                do ,undo-simpler-ops
+                ))))))
+   #+END_SRC
+** tests for the previous code
+*** testing macroexpansion vmacro
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+    (let* ((ops-list nil))
+      (format-boxed t "Testing make-do-neighborhood-selection")
+
+      (pp-expand (make-do-neighborhood-route-operation%%
+                           doselect-client%%
+                           (cname route working-copy)
+                           :op-name op-select-client
+                           :example-str "(doselect-client (c1 r1 wc1)
+                (format t \"Selecting client ~a from route ~a~%\"
+                 (client-selected-at-operation c1)
+                 (get-route-with-id r1 wc1)))")))
+    #+END_SRC
+
+*** testing macroexpansion
+    #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+    (let* ((ops-list nil))
+      (format-boxed t "Testing make-do-neighborhood-selection")
+
+      (pp-expand (make-do-neighborhood-route-operation%%
+                           doselect-client%%
+                           (cname route working-copy)
+                           :op-name op-select-client
+                           :op0-params (0 0 0)
+                           :wc-name basic-working-copy
+                           :wc0-params (nil)
+                           :example-str "(doselect-client (c1 r1 wc1)
+                (format t \"Selecting client ~a from route ~a~%\"
+                 (client-selected-at-operation c1)
+                 (get-route-with-id r1 wc1)))")))
+    #+END_SRC
+
+*** testing code
+**** op-select first example from hand-made doselect-client
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+     (progn
+
+       (make-do-neighborhood-route-operation%%
+        doselect-client%%%
+        (cname route working-copy)
+        :op-name op-select-client
+        :op0-params (0 0 0)
+        :wc-name basic-working-copy
+        :wc0-params (nil)
+        :example-str "(doselect-client (c1 r1 wc1)
+                (format t \"Selecting client ~a from route ~a~%\"
+                 (client-selected-at-operation c1)
+                 (get-route-with-id r1 wc1)))")
+
+      (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+        (let* ((wc (basic-working-copy s1))
+               (ops-list nil))
+
+          (prepare-solution-for-neighborhood-exploration wc)
+
+          (format-boxed t "Testing doselect-route2 with simpler-ops")
+          (doselect-client%%% (c1 2 wc)
+                            (format t "Selected client: ~a~%"
+                                    (client-selected-at-operation c1 wc))
+                            (pp-solution wc t) (terpri)))))
+     #+END_SRC
+
+**** op-select first example with two selections
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+     (progn
+       (make-do-neighborhood-route-selection%
+        doselect-client%%
+        (cname route working-copy)
+        :op-name op-select-client
+        :op0-params (0 0 0)
+        :wc-name basic-working-copy
+        :wc0-params (nil)
+        :example-str "(doselect-client (c1 r1 wc1)
+        (format t \"Selecting client ~a from route ~a~%\"
+         (client-selected-at-operation c1)
+         (get-route-with-id r1 wc1)))")
+
+      (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+        (let* ((wc (basic-working-copy s1))
+               (ops-list nil))
+
+          (prepare-solution-for-neighborhood-exploration wc)
+
+          (format-boxed t "Testing doselect-route2")
+          (doselect-client%% (c1 1 wc)
+            (doselect-client%% (c2 1 wc)
+              (format t "Selected clients: ~a and ~a~%"
+                      (client-selected-at-operation c1 wc)
+                      (client-selected-at-operation c2 wc))
+              (pp-solution wc t) (terpri))))))
+     #+END_SRC
+**** op-insert first example from hand-made doselect-client
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+     (progn
+
+       (make-do-neighborhood-route-selection%
+        doinsert-client%%
+        (cname route working-copy)
+        :op-name op-insert-client
+        :op0-params (0 0 0)
+        :wc-name basic-working-copy
+        :wc0-params (nil)
+        :example-str "(doinsert-client (c1 r1 wc1)
+                (format t \"Inserting client ~a into route ~a~%\"
+                 (client-selected-at-operation c1)
+                 (get-route-with-id r1 wc1)))")
+
+      (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+        (let* ((wc (basic-working-copy s1))
+               (c1 0)
+               (op1 (op-select-client 2 4 c1))
+               (ops-list nil))
+
+          (prepare-solution-for-neighborhood-exploration wc)
+          (simulate-neighborhood-operation op1 wc)
+
+          (format-boxed t "Testing doinsert-client%%")
+          (doinsert-client%% (c1 1 wc)
+            (format t "Inserting client: ~a at pos~%"
+                    (client-selected-at-operation c1 wc))
+            (pp-solution wc t) (terpri)))))
+     #+END_SRC
+
+**** op-insert first example with two selections
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+     (progn
+       (make-do-neighborhood-route-selection%
+        doinsert-client%%
+        (cname route working-copy)
+        :op-name op-insert-client
+        :op0-params (0 0 0)
+        :wc-name basic-working-copy
+        :wc0-params (nil)
+        :example-str "(doselect-client (c1 r1 wc1)
+        (format t \"Selecting client ~a from route ~a~%\"
+         (client-selected-at-operation c1)
+         (get-route-with-id r1 wc1)))")
+
+      (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+        (let* ((wc (basic-working-copy s1))
+               (c1 0) (c2 1)
+               (op1 (op-select-client 2 4 c1))
+               (op2 (op-select-client 2 1 c2))
+               (ops-list nil))
+
+          (prepare-solution-for-neighborhood-exploration wc)
+          (simulate-neighborhood-operation op1 wc)
+          (simulate-neighborhood-operation op2 wc)
+     
+          (format-boxed t "Testing doinsert-route%%")
+          (doinsert-client%% (c1 1 wc)
+            (doinsert-client%% (c2 1 wc)
+              (format t "Selected clients: ~a and ~a~%"
+                      (client-selected-at-operation c1 wc)
+                      (client-selected-at-operation c2 wc))
+              (pp-solution wc t) (terpri))))))
+     #+END_SRC
+    
+     
+
+
+* the generic macro at runtime is not working either
+*** generic functions to create the fixed parts of the macros         :dcost:
+**** some special variables
+***** ops-list
+      In a neighborhood search this variable is bound to a list with all the simpler-operations that define the current neighbor.
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defparameter ops-list nil
+       "In a neighborhood search this variable is bound to a list with all the simpler-operations that define the current neighbor.")
+     #+END_SRC
+**** make-simulate-simpler-ops-code
+***** description
+      This function returns the code to be inserted in the do-neighborhood-operation macros to process all simpler-ops than can be obtained from a given neighborhood operation.
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-simulate-simpler-ops-code (operation working-copy)
+       (:documentation "Returns code to simulate all the simpler-ops in the neighborhood."))
+     #+END_SRC
+***** method (t t)
+****** description
+       As this code is the same in all the macros we have seen so far, the function is specialized in (t t)
+****** code
+      #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+      (defmethod make-simulate-simpler-ops-code (op wc)
+        "This function returns the code to be inserted in the do-neighborhood-operation macros to process all simpler-ops than can be obtained from a given neighborhood operation."
+        (declare (special ops-list simple-op simpler-ops working-copy))
+
+        (bformat t "entering make-simulate-simpler-ops-code")
+
+        (prog1
+            `(progn
+               ;; here we process all the operations
+               ;; in simpler-ops
+               (dolist (,simple-op ,simpler-ops)
+                 ;; push the current op into ops-list
+                 (push ,simple-op ops-list)
+                 ;; simulate the operation
+                 (simulate-neighborhood-operation
+                  ,simple-op ,working-copy)))
+             (bformat t "finished make-simulate-simpler-ops-code")))
+      #+END_SRC
+****** tests
+       Let'm make some simple tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((simple-op :s-op23)
+              (ops-list `(:op1 :op2 :op3))
+              (simpler-ops :s-ops69)
+              (working-copy :wc48))
+
+         (declare (special simple-op simpler-ops ops-list working-copy))
+
+         (bformat t "Testing make-simulate-simpler-ops-code")
+         (format t "make-simulate-simpler-ops-code:~%~a~%"
+                 (make-simulate-simpler-ops-code t t)))
+
+
+       #+END_SRC
+**** make-undo-simpler-ops-code
+***** description
+      This function returns the code to be inserted to undo all simpler-ops after we have executed the user's code.  This is in the context of the make-do-neighborhood-macro.
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-undo-simpler-ops-code (operation working-copy)
+       (:documentation "Returns code to undo all the simpler-ops in the neighborhood."))
+     #+END_SRC
+***** method (t t )
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-undo-simpler-ops-code (op wc)
+       "This method returns the code to be inserted to undo all simpler-ops after we have executed the user's code.  This is in the context of the make-do-neighborhood-macro."
+
+       (declare (special ops-list simpler-ops simple-op working-copy))
+
+       `(progn
+          ;; here we undo all the operations in
+          ;; simpler-ops:
+          (dolist (,simple-op (reverse ,simpler-ops))
+            ;; pop the op from the list of operations
+            (pop ops-list)
+            ;; undo the operation
+            (undo-neighborhood-operation ,simple-op ,working-copy))))
+     #+END_SRC
+***** tests
+      Let'm make some simple tests
+      #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+      (let* ((simpler-ops :sops21)
+             (ops-list `(:sop1 :sop2))
+             (simple-op :sop14)
+             (working-copy :wc61))
+
+        (declare (special simple-op simpler-ops ops-list working-copy))
+
+
+        (bformat t "Testing make-undo-simpler-ops-code")
+        (format t "make-undo-simpler-ops-code~% ~a~%"
+                (make-undo-simpler-ops-code t t)))
+
+
+      #+END_SRC
+**** make-op-instance-code
+***** description
+      When writing the code for a do-neighborhood-operation macro one of the most important parts is the creation of the operation's instance.
+
+      - In the case of the select-client, before we create the class, we need to bind cname to =(1+ (selections-count ,working-copy))= and then use that value as an argument te op-select-client.
+
+      - In the case of an insert-client operation we don't bind =cname= and in the constructor of the operation we just use the value that the user passed to us in =cname=.
+
+      - In the case of a select-subroute, we need to bind =cname= to =(1+ (selections-count ,working-copy))=, and we need to pass to the constructor the size of the subroute.
+
+      The idea is that the function that we are going to create in this section will deal with this aspects, and will return the code to insert in the loop in the corresponding do-neighborhood-operation macro.
+
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-op-instance-code (operation working-copy)
+       (:documentation "Returns the expressions needed to create the instance of an operation `operation' in a do-neighborhood-operation macro."))
+     #+END_SRC
+***** method (operation-select-client basic-working-copy)
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-op-instance-code
+         ((operation operation-select-client) (wc basic-working-copy))
+       "Returns an expression to create an instance of the operation-select-client to be used in a do-neighborhood-operation macro."
+
+       (declare (special cname op pos route working-copy))
+
+       ;; return the following lines
+
+       `(for ,cname = (1+ (selections-count ,working-copy))
+         for ,op = (op-select-client ,route ,pos ,cname)))
+     #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((pos :pos23)
+              (route :route56)
+              (working-copy :working-copy28)
+              (cname :name32)
+              (op :op78)
+              (op0 (op-select-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special cname op pos route working-copy))
+
+         (bformat t "Testing make-compute-route-end-code")
+
+         (format t " make-op-instance-code~%  ~a~%"
+                 (make-op-instance-code op0 wcopy)))
+
+
+       #+END_SRC
+     
+***** method (operation-insert-client basic-working-copy)
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-op-instance-code
+         ((operation operation-insert-client)
+          (wc basic-working-copy))
+       "Returns an expression to create an instance of the operation-insert-client to be used in a do-neighborhood-operation macro."
+
+       (declare (special cname op pos route))
+
+       ;; return the following lines
+       `(for ,op = (op-insert-client ,route ,pos ,cname)))
+     #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((pos :pos23)
+              (route :route56)
+              (op :op45)
+              (cname :c1)
+              (op0 (op-insert-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special cname op pos route))
+         (bformat t "Testing make-compute-route-end-code")
+         (format t "  make-op-instance-code~%  ~a~%"
+                 (make-op-instance-code op0 wcopy)))
+
+
+       #+END_SRC
+**** make-compute-route-end-code
+***** description
+      When writing the code for a do-neighborhood-operation macro that traverse a route (such as doselect-client or doinsert-client) it is necessary to compute how far into route we should repeat the operation.
+
+      For instance, in the case of the select-client, we should traverse the route up to the last position, because we can select all the clients in the route including the last one.  In the case of an client-insertion, we should traverse the list up to one position more than the route length because we can insert at the end of the route.  If we are dealing with a select-subroute, then we can select from the subroute up to the position =route-length - subroute-length + 1=, because we need to select the subroutes with a fixed length.
+
+      This function returns the code to compute the last position to do the operation according to the operation we are dealing with.  On a first approach I'm going to make it a generic function.
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-compute-route-end-code (operation working-copy)
+       (:documentation "Returns an expression to compute the last position in a route to repeat the operation `operation' in a do-neighborhood-operation macro."))
+     #+END_SRC
+***** method (operation-select-client basic-working-copy)
+****** code
+      #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+      (defmethod make-compute-route-end-code
+          ((op operation-select-client) (wc basic-working-copy))
+        "Returns an expression to compute the last position in a route to repeat the operation `operation' in a do-neighborhood-operation macro. If the operation is a select-client, then we need to iterate up to the last position in the route."
+
+        (declare (special pos route working-copy))
+  
+        ;; return the following line 
+        `(for ,pos from 1 to (route-length ,route ,working-copy)))
+      #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((pos :pos23)
+              (route :route56)
+              (working-copy :working-copy28)
+              (op (op-select-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special pos route working-copy))
+
+         (bformat t "Testing make-compute-route-end-code")
+         (format t "  make-compute-route-end-code~%  ~a~%"
+                 (make-compute-route-end-code op wcopy)))
+
+
+       #+END_SRC
+
+***** method (operation-insert-client basic-working-copy)
+     #+begin_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-compute-route-end-code
+         ((op operation-insert-client) (wc basic-working-copy))
+       "Returns an expression to compute the last position in a route to repeat the operation `operation' in a do-neighborhood-operation macro. If the operation is insert-client, then we need to iterate up to the 1 more than the last position in the route, because we can insert at the end."
+  
+       (declare (special pos route working-copy))
+  
+       ;; return the following line 
+       `(for ,pos from 1 to (1+ (route-length ,route ,working-copy))))
+     #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((pos :pos23)
+              (route :route56)
+              (working-copy :working-copy28)
+              (op (op-insert-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special pos route working-copy))
+
+
+         (bformat t "Testing make-compute-route-end-code")
+         (format t "  make-compute-route-end-code~%  ~a~%"
+                 (make-compute-route-end-code op wcopy)))
+
+
+       #+END_SRC
+**** make-get-simpler-ops-and-stop-code
+***** description
+      In this section we create the function that creates the simpler-ops for a given op and checks if the variable *vrp-stop-neighborhood-search* is nil.  This is a generic function, but so far it will be specialized on (t t) because so far, that code is always the same.
+
+***** generic-function
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defgeneric make-get-simpler-ops-and-stop-code
+         (operation working-copy)
+       (:documentation "Returns the expressions needed to create the simpler operations and check the value of the variable *vrp-stop-neighborhood-search*."))
+     #+END_SRC
+***** method (operation-select-client basic-working-copy)
+     #+BEGIN_SRC lisp +n -r :results none :exports code :tangle "../src/vrp-delta-cost.lisp"
+     (defmethod make-get-simpler-ops-and-stop-code 
+         (operation wc)
+       "Returns the code to create the simpler-ops from a neighborhood-operation and the code to stop the iteration in case the user changes the value of *vrp-stop-neighborhood-search*."
+
+       (declare (special simpler-ops op working-copy))
+
+         `(for ,simpler-ops = (get-simpler-operations-from
+                                       ,op ,working-copy)
+               ;; the following line allows the final user
+               ;; to stop the iteration by setting that
+               ;; variable to t
+               while (not *vrp-stop-neighborhood-search*)))
+     #+END_SRC
+****** tests
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+       (let* ((simpler-ops :s-pos23)
+              (working-copy :working-copy28)
+              (op :op48)
+              (op0 (op-select-client 1 1 0))
+              (wcopy (basic-working-copy nil)))
+
+         (declare (special simpler-ops op working-copy))
+         (bformat t "Testing make-get-simpler-ops-and-stop-code")
+         (format t "  make-get-simpler-ops-and-stop-code:~%  ~a~%"
+                 (make-get-simpler-ops-and-stop-code op0 wcopy)))
+
+
+       #+END_SRC
+*** code with generic (special) functions to generate code
+**** description
+     In this approach I'm going to try to generate fragments of the code dynamically from the generic functions and will create the macro at runtime.  I'm not sure how efficient will that be, but I'll give it a try.
+**** code with generic-functions at runtime
+     #+BEGIN_SRC lisp +n -r :results none :exports code
+     (defmacro make-do-neighborhood-route-operation% (macro-name
+                                                      (&rest args)
+                                                      &key
+                                                        op-name
+                                                        op0-params
+                                                        wc-name
+                                                        wc0-params
+                                                        example-str)
+       ;;{{{ documentation
+       "Creates a do-neighborhood macro for a selection. The created macro searches the neighborhood in an exhaustive way.
+
+     There will always be a gensym named `pos' that will iterate through all the positions in the route. One of the parameter passed by the user should be named `route'.
+
+     The arguments are:
+
+        - macro-name :: the name of the macro.
+        - args :: the args that the created macro will receive.
+                  Apparently we'll always need parameters named `cname',
+                  `route', and `working-copy'.
+                   - `cname' should be a symbol that will be bound to
+                     (1+ (selections-count working-copy).
+                   - `route' should be a number with the id of a route
+                      in the working-copy, where the selections should
+                      take place.
+        - op-name :: the constructor of the neighborhood operation to use.
+        - op-params :: the params that should be passed to the constructor
+                       of the operation.
+        - example-str ::  this is a string to add to the description of the macro with an intended usage example." ;;;}}}
+
+       (let* ((comment-str (format nil "Iterates through each position in the given route, creates an instance of ~a, pushes it int ops-lists, simulates it, do whatever the users wants to do, and finally restores everything to the previous state.
+     Example:
+        ~a" op-name example-str))
+              (gensyms-list `(pos op simpler-ops simple-op)))
+
+         ;; here starts the code for the macro
+         `(defmacro ,macro-name (,args &body body)
+            ,comment-str
+
+            (with-gensyms ,gensyms-list
+              ;; let's make the args known to the compiler 
+              (let* ,(mapcar (lambda (x) `(,x ',x)) args)
+
+                ;; let's declare the gensyms and the args special 
+                (declare (special ,@gensyms-list ,@args))
+                ;; let's avoid ugly compiler warnings
+                (declare (ignorable ,@gensyms-list ,@args))
+
+                (let* ( ;; we add instances to use the
+                       ;; generic functions below
+                       (op0 (,op-name ,@op0-params))
+                       (wc0 (,wc-name ,@wc0-params))
+                       (simulate-simpler-ops
+                        ;; first let's create the code to simulate the ops
+                        (make-simulate-simpler-ops-code op0 wc0))
+                       ;; and the code to undo the previous simulations
+                       (undo-simpler-ops
+                        (make-undo-simpler-ops-code op0 wc0))
+                       ;; add the code to compute how far into
+                       ;; the route we should go doing the op
+                       (compute-route-end-code
+                        (make-compute-route-end-code op0 wc0))
+                       ;; add the code to create the instance
+                       ;; of the op that will be simulated
+                       (op-instance-initialization
+                        (make-op-instance-code op0 wc0))
+                       ;; add the code to 
+                       (get-simpler-ops-and-stop-code 
+                        (make-get-simpler-ops-and-stop-code op0 wc0))
+                       )
+
+                  `(loop
+                    ,@compute-route-end-code
+                    ,@op-instance-initialization
+
+                    ;; we get the simpler-ops and
+                    ;; check that *vrp-stop-neighborhood-search* is nil
+                    ,@get-simpler-ops-and-stop-code
+
+
+                    ;; here I want to add some code to execute it
+                    ;; before the simulation of the operation
+                    ;; but I'm not yet sure about how to do it right :-/
+
+                    ;; now the simulation
+                    do ,simulate-simpler-ops
+                    ;; let's do what the user wants
+                    do (progn ,@body)
+                    ;; now the clean up
+                    do ,undo-simpler-ops
+                    )))))))
+     #+END_SRC
+**** tests
+***** testing macroexpansion
+      #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp" 
+      (let* ((ops-list nil))
+        (format-boxed t "Testing make-do-neighborhood-selection")
+
+        (pp-expand (make-do-neighborhood-route-operation%
+                             doselect-client%%
+                             (cname route working-copy)
+                             :op-name op-select-client
+                             :op0-params (0 0 0)
+                             :wc-name basic-working-copy
+                             :wc0-params (nil)
+                             :example-str "(doselect-client (c1 r1 wc1)
+                  (format t \"Selecting client ~a from route ~a~%\"
+                   (client-selected-at-operation c1)
+                   (get-route-with-id r1 wc1)))")))
+      #+END_SRC
+
+***** testing code
+****** op-select first example from hand-made doselect-client
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+       (progn
+
+         (make-do-neighborhood-route-operation%
+          doselect-client%%%
+          (cname route working-copy)
+          :op-name op-select-client
+          :op0-params (0 0 0)
+          :wc-name basic-working-copy
+          :wc0-params (nil)
+          :example-str "(doselect-client (c1 r1 wc1)
+                  (format t \"Selecting client ~a from route ~a~%\"
+                   (client-selected-at-operation c1)
+                   (get-route-with-id r1 wc1)))")
+
+        (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+          (let* ((wc (basic-working-copy s1))
+                 (ops-list nil))
+
+            (prepare-solution-for-neighborhood-exploration wc)
+
+            (format-boxed t "Testing doselect-route2 with simpler-ops")
+            (doselect-client%%% (c1 2 wc)
+                              (format t "Selected client: ~a~%"
+                                      (client-selected-at-operation c1 wc))
+                              (pp-solution wc t) (terpri)))))
+       #+END_SRC
+
+****** op-select first example with two selections
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+       (progn
+         (make-do-neighborhood-route-selection%
+          doselect-client%%
+          (cname route working-copy)
+          :op-name op-select-client
+          :op0-params (0 0 0)
+          :wc-name basic-working-copy
+          :wc0-params (nil)
+          :example-str "(doselect-client (c1 r1 wc1)
+          (format t \"Selecting client ~a from route ~a~%\"
+           (client-selected-at-operation c1)
+           (get-route-with-id r1 wc1)))")
+
+        (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+          (let* ((wc (basic-working-copy s1))
+                 (ops-list nil))
+
+            (prepare-solution-for-neighborhood-exploration wc)
+
+            (format-boxed t "Testing doselect-route2")
+            (doselect-client%% (c1 1 wc)
+              (doselect-client%% (c2 1 wc)
+                (format t "Selected clients: ~a and ~a~%"
+                        (client-selected-at-operation c1 wc)
+                        (client-selected-at-operation c2 wc))
+                (pp-solution wc t) (terpri))))))
+       #+END_SRC
+****** op-insert first example from hand-made doselect-client
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+       (progn
+
+         (make-do-neighborhood-route-selection%
+          doinsert-client%%
+          (cname route working-copy)
+          :op-name op-insert-client
+          :op0-params (0 0 0)
+          :wc-name basic-working-copy
+          :wc0-params (nil)
+          :example-str "(doinsert-client (c1 r1 wc1)
+                  (format t \"Inserting client ~a into route ~a~%\"
+                   (client-selected-at-operation c1)
+                   (get-route-with-id r1 wc1)))")
+
+        (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+          (let* ((wc (basic-working-copy s1))
+                 (c1 0)
+                 (op1 (op-select-client 2 4 c1))
+                 (ops-list nil))
+
+            (prepare-solution-for-neighborhood-exploration wc)
+            (simulate-neighborhood-operation op1 wc)
+
+            (format-boxed t "Testing doinsert-client%%")
+            (doinsert-client%% (c1 1 wc)
+              (format t "Inserting client: ~a at pos~%"
+                      (client-selected-at-operation c1 wc))
+              (pp-solution wc t) (terpri)))))
+       #+END_SRC
+
+****** op-insert first example with two selections
+       #+BEGIN_SRC lisp +n -r :results output :exports both :tangle "../src/vrp-tests.lisp"
+       (progn
+         (make-do-neighborhood-route-selection%
+          doinsert-client%%
+          (cname route working-copy)
+          :op-name op-insert-client
+          :op0-params (0 0 0)
+          :wc-name basic-working-copy
+          :wc0-params (nil)
+          :example-str "(doselect-client (c1 r1 wc1)
+          (format t \"Selecting client ~a from route ~a~%\"
+           (client-selected-at-operation c1)
+           (get-route-with-id r1 wc1)))")
+
+        (with-basic-solution (s1 ((1 2 3 4) (5 6 7 8)))
+          (let* ((wc (basic-working-copy s1))
+                 (c1 0) (c2 1)
+                 (op1 (op-select-client 2 4 c1))
+                 (op2 (op-select-client 2 1 c2))
+                 (ops-list nil))
+
+            (prepare-solution-for-neighborhood-exploration wc)
+            (simulate-neighborhood-operation op1 wc)
+            (simulate-neighborhood-operation op2 wc)
+     
+            (format-boxed t "Testing doinsert-route%%")
+            (doinsert-client%% (c1 1 wc)
+              (doinsert-client%% (c2 1 wc)
+                (format t "Selected clients: ~a and ~a~%"
+                        (client-selected-at-operation c1 wc)
+                        (client-selected-at-operation c2 wc))
+                (pp-solution wc t) (terpri))))))
+       #+END_SRC
+  
+
+
+* looking for bug in simulation
+** description
+   In this section I'm going to look for a bug in the simulation.  It is a heap exhausted.
+** version with deterministic solution
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp 
+     (let* ((problem a-n65-k9-problem)
+            (s1 (make-initial-solution-for-cvrp-deterministic problem))
+            ;; (best-solution-exhaustive nil)
+            ;; (action (delta-cvrp-action))
+            ;; (results nil)
+            ;; (cvrp-action (basic-cvrp-action 
+            ;;               :penalty-factor 1000))
+            (wc (basic-working-copy s1))
+            (counter 0)
+            (ops-list nil)
+            )
+
+       (prepare-solution-for-neighborhood-exploration wc)
+
+       (bformat t "Testing ugly rereehf")
+
+       (format t "Original solution:~%")
+       (pp-solution s1 t)
+
+       (doselect-route (r1 wc)
+         (doselect-subroute (z1 r1 wc)
+           (doselect-route (r2 wc)
+            (doselect-subroute (z2 r2 wc)
+              (doselect-subroute (z3 r2 wc)
+                (doswap-subroutes (z3 z2 wc)
+                  (doinsert-subroute (z1 r1 wc)
+                     (incf counter)
+                     (format t "iteracion: ~a~%" counter)
+                     )))))))
+
+       (format t "finished all.~%")
+
+
+
+
+       )
+     #+END_SRC
+** version with all in one solution (working)
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/rejected.lisp 
+     (with-basic-cvrp-solution (s1 ((1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64)) a-n65-k9-problem)
+
+
+       (let* (
+              ;; (problem a-n65-k9-problem)
+              ;; (s1 (make-initial-solution-for-cvrp-deterministic problem))
+              ;; (best-solution-exhaustive nil)
+
+              (best-neighbor-as-solution t)
+              (current-solution nil)
+
+              (action (delta-cvrp-action))
+              ;; (results nil)
+              (cvrp-action (basic-cvrp-action 
+                            :penalty-factor 1000))
+              (best-neighbor nil)
+              (best-delta-cost 0)
+              (wc (basic-working-copy s1))
+              (counter 0)
+              (outer-counter 1)
+              (better-neigborhs-counter 0)
+              (current-delta-cost 0)
+              (ops-list nil)
+              (*vrp-stop-neighborhood-search* nil)
+              )
+
+
+         (prepare-solution-for-neighborhood-exploration wc)
+
+         (bformat t "Testing ugly rereehf")
+
+         (format t "Original solution:~%")
+         (pp-solution s1 t)
+
+         (doselect-route (r1 wc)
+           (doselect-subroute (z1 r1 wc
+                                  :lex-cond (< z1.length 50))
+             (doselect-route (r2 wc)
+               (doselect-subroute (z2 r2 wc
+                                      :lex-cond (< z2.length 10))
+                 (doselect-subroute (z3 r2 wc
+                                        ;; :lex-cond (< z3.length )
+                                        )
+                   (doswap-subroutes (z3 z2 wc)
+                     (doinsert-subroute (z1 r1 wc)
+                       (setf current-delta-cost
+                             (delta-cost (reverse ops-list)
+                                         wc
+                                         a-n65-k9-problem
+                                         action))
+                       (IF (< CURRENT-DELTA-COST BEST-DELTA-COST)
+                           (THEN
+                             (incf better-neigborhs-counter
+                                   (length ops-list))))
+                  
+                       (incf counter)
+                       (format t "iteracion: ~a/~a/~a, ~30t|z1|=~a, ~40t|z2|=~a, ~50t|z3|=~a, ~60tdcost: ~4d/~a~%"
+                               outer-counter
+                               counter
+                               better-neigborhs-counter
+                               z1.subroute.length
+                               z2.subroute.length
+                               z3.subroute.length
+                               current-delta-cost
+                               best-delta-cost)
+                       )))))))
+
+         (format t "finished all.~%")
+
+
+
+
+         )
+       )
+     #+END_SRC
+** version with all in one solution
+     #+BEGIN_SRC lisp +n -r :results output :exports both :tangle ../src/vrp-tests.lisp 
+     (with-basic-cvrp-solution (s1 ((1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64)) a-n65-k9-problem)
+
+
+       (let* (
+              ;; (problem a-n65-k9-problem)
+              ;; (s1 (make-initial-solution-for-cvrp-deterministic problem))
+              ;; (best-solution-exhaustive nil)
+
+              (best-neighbor-as-solution t)
+              (current-solution nil)
+
+              (action (delta-cvrp-action))
+              ;; (results nil)
+              (cvrp-action (basic-cvrp-action 
+                            :penalty-factor 1000))
+              (best-neighbor nil)
+              (best-delta-cost 0)
+              (wc (basic-working-copy s1))
+              (counter 0)
+              (outer-counter 1)
+              (current-delta-cost 0)
+              (ops-list nil)
+              (*vrp-stop-neighborhood-search* nil)
+              )
+
+         (simulate-solution s1 a-n65-k9-problem cvrp-action)
+         (setf (cost s1) (get-cost-from-action cvrp-action))
+
+         (setf current-solution (clone s1))
+
+         (prepare-solution-for-neighborhood-exploration wc)
+
+         (bformat t "Testing ugly rereehf")
+
+         (format t "Original solution:~%")
+         (pp-solution s1 t)
+         (format t "with cost: ~a~%" (cost s1))
+
+         (loop while (and (< outer-counter 10)
+                          best-neighbor-as-solution) 
+               do (progn
+                    (setf wc (basic-working-copy current-solution))
+                    (prepare-solution-for-neighborhood-exploration wc)
+                    )
+               do (progn
+                    (setf best-neighbor-as-solution nil)
+                    (setf best-delta-cost 0))
+               do (doselect-route (r1 wc)
+                    (doselect-subroute (z1 r1 wc
+                                           :lex-cond (< z1.length 50))
+                      (doselect-route (r2 wc)
+                        (doselect-subroute (z2 r2 wc
+                                               :lex-cond (< z2.length 12))
+                          (doselect-subroute (z3 r2 wc
+                                                 ;; :lex-cond (< z3.length )
+                                                 )
+                            (doswap-subroutes (z3 z2 wc)
+                              (doinsert-subroute (z1 r1 wc)
+                                (setf current-delta-cost
+                                      (delta-cost (reverse ops-list)
+                                                  wc
+                                                  a-n65-k9-problem
+                                                  action))
+                                (IF (< CURRENT-DELTA-COST BEST-DELTA-COST)
+                                    (THEN
+                                      (SETF BEST-NEIGHBOR (CLONE OPS-LIST))
+                                      (SETF BEST-DELTA-COST CURRENT-DELTA-COST)))
+                                (incf counter)
+                                (format t "iteracion: ~a/~a, ~20t|z1|=~a, ~30t|z2|=~a, ~40t|z3|=~a, ~50tdelta-cost: ~a/~a~%"
+                                        outer-counter
+                                        counter
+                                        z1.subroute.length
+                                        z2.subroute.length
+                                        z3.subroute.length
+                                        current-delta-cost
+                                        best-delta-cost)
+                                )))))))
+
+               do (if best-neighbor
+                      (then
+                        (apply-set-of-operations
+                              (reverse best-neighbor) wc)
+                        (setf best-neighbor-as-solution (solution wc))
+                        (setf (cost best-neighbor-as-solution)
+                              (+ (cost current-solution) best-delta-cost))
+                        (setf current-solution
+                              (clone best-neighbor-as-solution))))
+               do (incf outer-counter)
+               do (pp-solution best-neighbor-as-solution t))
+
+         (format t "finished all.~%")
+
+
+
+
+         )
+       )
+     #+END_SRC

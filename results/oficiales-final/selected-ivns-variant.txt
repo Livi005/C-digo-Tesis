@@ -1,0 +1,12 @@
+Selected IVNS variant for final comparison
+==========================================
+
+BEST_PROFILE=baseline
+BEST_MODE=random
+
+Selection criterion:
+Minimum global median gap_percent among the evaluated IVNS variants.
+
+Selected variant:
+IVNS profile = baseline
+VND mode     = random

@@ -1,0 +1,1213 @@
+#+TITLE: VRP solver environment
+#+AUTHOR: Fernando Rodriguez Flores
+#+DATE 2018-07-29 
+#+TAGS: suite(s) classes(c) moments(m) data(d) algoritms(a) dcost(v)
+#+TAGS: emacs(e) utils(u) strat(t) simul(i) vanny(o) initialroutes(r)
+#+TAGS: hector(h)
+#+TODO: TODO | DONE
+#+STARTUP: nologdone
+
+
+* Description
+
+  In this file we'll log all the progresses, thoughts, and ideas.  It will be a central log instead of having one different log on each file.
+
+  Supposedly, this will unclutter the others file and it will make it easier to search for the next steps.
+
+  
+* Journal
+** <2024-06-19 Wed>
+:LOGBOOK:
+CLOCK: [2024-06-19 Wed 11:40]--[2024-06-19 Wed 12:05] =>  0:25
+:END:
+ - in neighborhood rarab21b12
+   - added a function to detect whether c2 was selected before c1 
+** <2023-08-13 Sun>
+:LOGBOOK:
+CLOCK: [2023-08-13 Sun 20:54]--[2023-08-13 Sun 21:32] =>  0:38
+:END:
+ - write the macro for the pattern detection
+ - tested the macro
+** <2023-08-12 Sat>
+:LOGBOOK:
+CLOCK: [2023-08-12 Sat 19:24]--[2023-08-12 Sat 19:32] =>  0:08
+:END:
+ - modify the document structure for the pattern-dectection functions and macros
+ - that's on the file vrp-strategy
+** <2023-08-01 Tue>
+:LOGBOOK:
+CLOCK: [2023-08-01 Tue 21:41]--[2023-08-01 Tue 23:55] =>  2:14
+CLOCK: [2023-08-01 Tue 18:20]--[2023-08-01 Tue 20:27] =>  2:07
+:END:
+ - writing the difference
+ - testing the difference
+ - found bug in the computation of the difference
+ - thinking about the solution to the elimination of some neighbors
+ - the next steps should be create the next identify pattern functions
+ - decided, those would be the next steps
+** <2023-07-28 Fri>
+:LOGBOOK:
+CLOCK: [2023-07-28 Fri 17:28]--[2023-07-28 Fri 18:53] =>  1:25
+:END:
+ - analyzing repeating solutions
+ - I think I have an idea of what's going on
+ - solved one of the problems.
+ - the next step is to compute the difference between two tries
+** <2023-07-15 Sat>
+:LOGBOOK:
+CLOCK: [2023-07-15 Sat 22:33]--[2023-07-16 Sun 00:44] =>  2:11
+:END: 
+ - working on removing elements from hermen example
+ - wrote some functions to explore the trie
+ - next ideas:
+   - write a function to detect patterns in the trie
+     - for instance: show unique solutions with this pattern
+       - this should be done in the trie with the original solutions
+** <2023-07-10 Mon>
+:LOGBOOK:
+CLOCK: [2023-07-10 Mon 19:32]--[2023-07-10 Mon 20:46] =>  1:14
+:END:
+ - adding constraints to criteria in hermen example
+ - had to write the example from scratch using the do-neighborhood macros
+** <2023-07-08 Sat>
+:LOGBOOK:
+CLOCK: [2023-07-08 Sat 21:41]--[2023-07-08 Sat 23:16] =>  1:35
+CLOCK: [2023-07-08 Sat 15:44]--[2023-07-08 Sat 19:10] =>  3:26
+:END:
+ - Added a program to detect repeated neighbors in a criterion.
+ - added a strategy for that.
+ - adding examples to detect repeated elements
+ - write a function to analyze a neighborhood for a solution
+ - write some examples for hermen
+** <2022-04-14 Thu>
+:LOGBOOK:
+CLOCK: [2022-04-14 Thu 11:56]--[2022-04-14 Thu 12:29] =>  0:33
+:END:
+ - added how to modify a solution with a working copy.
+** <2022-04-13 Wed>
+:LOGBOOK:
+CLOCK: [2022-04-13 Wed 11:02]--[2022-04-13 Wed 11:35] =>  0:33
+:END:
+*** writing the tutorial on vrp-operations (today it was the working copy)
+** <2022-04-12 Tue>
+:LOGBOOK:
+CLOCK: [2022-04-12 Tue 11:35]--[2022-04-12 Tue 11:54] =>  0:19
+:END:
+*** writing tutorial on vrp-operations
+** <2022-03-27 Sun>
+:LOGBOOK:
+CLOCK: [2022-03-27 Sun 14:00]--[2022-03-27 Sun 14:44] =>  0:44
+:END:
+*** writing tutorial on vrp-operations.
+** <2021-08-27 Fri>
+   :LOGBOOK:
+   CLOCK: [2021-08-27 Fri 11:10]--[2021-08-27 Fri 11:43] =>  0:33
+   :END:
+*** Wrote data generation for tape tests in JJ tape prototype
+*** Created the data
+** <2021-08-24 Tue>
+   :LOGBOOK:
+   CLOCK: [2021-08-24 Tue 11:07]--[2021-08-24 Tue 11:37] =>  0:30
+   :END:
+*** Wrote a function to generate data for JJ tape prototype
+** <2021-03-17 mié>
+   :LOGBOOK:
+   CLOCK: [2021-03-17 mié 17:41]--[2021-03-17 mié 18:30] =>  0:49
+   :END:
+*** Added tutorial for JJ on using the doneighborhood macros.
+** <2021-01-26 mar>
+   :LOGBOOK:
+   CLOCK: [2021-01-26 mar 17:40]--[2021-01-26 mar 18:35] =>  0:55
+   :END:
+*** Adding tutorial for Gabriela
+    - evaluating solutions using actions.
+** <2021-01-22 vie>
+   :LOGBOOK:
+   CLOCK: [2021-01-22 vie 14:25]--[2021-01-22 vie 15:30] =>  1:05
+   :END:
+*** Adding tutorial for Gabriela
+    - with-basic-cvrp-problem
+    - with-basic-cvrp-solution
+** <2021-01-21 jue>
+   :LOGBOOK:
+   CLOCK: [2021-01-21 jue 16:26]--[2021-01-21 jue 17:58] =>  1:32
+   :END:
+*** Adding tutorial for Gabriela
+    - routes
+    - solution
+    - pp-solution
+    - problems
+    - with-basic-clients
+    - with-basic-solution
+*** Next steps: continue tutorial for Gabriela (add neigh)
+** <2021-01-20 mié>
+   :LOGBOOK:
+   CLOCK: [2021-01-20 mié 16:55]--[2021-01-20 mié 17:50] =>  0:55
+   :END:
+*** Added (part of) tutorial for Gabriela
+    - clients
+    - vehicles
+    - depots
+    - started routes.
+*** Planned the rest of the tutorials
+*** Next steps: continue tutorial for Gabriela
+** <2021-01-19 mar>
+   :LOGBOOK:
+   CLOCK: [2021-01-19 mar 17:05]--[2021-01-19 mar 17:18] =>  0:13
+   :END:
+*** Added tutorial for Gabriela (initialize the system)
+*** Next step: tutorial for Gabriela
+    
+** <2021-01-18 lun>
+   :LOGBOOK:
+   CLOCK: [2021-01-18 lun 17:19]--[2021-01-18 lun 18:19] =>  1:00
+   :END:
+*** Added log to vns-exhaustive-best-neighbor
+*** Added a vns-best with adaptative exploration strategy size
+    We change the exploration strategy according to the size of the neighborhood.
+*** Added a vns-adaptive-with-first-improvement
+*** Thought about an adaptative neighborhood size
+*** Thought about a graph conecting neighbors
+*** Next step: tutorial for Gabriela
+** <2021-01-11 lun>
+   :LOGBOOK:
+   CLOCK: [2021-01-11 lun 15:35]--[2021-01-11 lun 16:28] =>  0:53
+   CLOCK: [2021-01-11 lun 14:09]--[2021-01-11 lun 14:34] =>  0:25
+   :END:
+*** Added a first vns (only exhaustive / best)
+** <2021-01-10 dom>
+   :LOGBOOK:
+   CLOCK: [2021-01-10 dom 17:11]--[2021-01-10 dom 18:52] =>  1:41
+   :END:
+*** Added a vnd with random improvement                              :hector:
+** <2021-01-05 mar>
+   :LOGBOOK:
+   CLOCK: [2021-01-05 mar 11:07]--[2021-01-05 mar 13:22] =>  2:15
+   :END:
+*** Added the file neigh-strategies to the tangle                    :hector:
+*** Added the file neigh-strategies to the load                      :hector:
+*** Added strategies for the generators                              :hector:
+    - [X] random-improvement-with-candidates
+*** Added a vnd with generators                            :algoritms:hector:
+    - [X] VND with exhaustive search
+*** Next steps
+    - Add more algorithms
+      Add a VND keeping track of the best neighbor found.
+      Maybe one that decides what strategy to use.
+** <2021-01-03 dom>
+   :LOGBOOK:
+   CLOCK: [2021-01-03 dom 16:25]--[2021-01-03 dom 17:05] =>  0:40
+   CLOCK: [2021-01-03 dom 16:05]--[2021-01-03 dom 16:25] =>  0:20
+   :END:
+*** Added official strategies for the generators                     :hector:
+    - [X] update the best-solution-found so far
+    - [X] best-neighbor
+    - [X] random-improvement-without-candidates
+*** Next steps
+    - add more strategies for the generators
+     - [ ] random-improvement-with-candidates
+     - [ ] random-improvement-with-candidates-proportional
+** <2021-01-02 sáb>
+   :LOGBOOK:
+   CLOCK: [2021-01-02 sáb 15:05]--[2021-01-02 sáb 15:50] =>  0:45
+   :END:
+*** Added a random improvement with candidates                        :strat:
+*** Added a strategy to return a solution better than *best*      :algoritms:
+*** Added some comments on what to do with Hector's strategies        :strat:
+*** Next steps
+    - start writing the "official" strategies.
+** <2021-01-01 vie>
+   :LOGBOOK:
+   CLOCK: [2021-01-01 vie 17:27]--[2021-01-01 vie 17:58] =>  0:31
+   :END:
+*** Added some (hand coded) strategies using Hector's generators     :hector:
+    - first-improvement
+    - random-improvement (without candidates)
+*** Next steps
+    - add a strategy that keeps track of best solution in the problem.
+** <2020-12-31 jue>
+   :LOGBOOK:
+   CLOCK: [2020-12-31 jue 16:03]--[2020-12-31 jue 16:32] =>  0:29
+   :END:
+*** Added all the generic functions definitions to avoid warnings    :hector:
+** <2020-12-29 mar>
+   :LOGBOOK:
+   CLOCK: [2020-12-29 mar 18:06]--[2020-12-29 mar 18:08] =>  0:02
+   CLOCK: [2020-12-29 mar 18:06]--[2020-12-29 mar 18:06] =>  0:00
+   CLOCK: [2020-12-29 mar 18:05]--[2020-12-29 mar 18:06] =>  0:01
+   CLOCK: [2020-12-29 mar 16:32]--[2020-12-29 mar 17:22] =>  0:50
+   :END:
+*** Coded by hand several explorations using Hector's generators  :algoritms:
+    - exhaustive-best
+    - random-best
+*** Thinking about the new system for the creation of strategies  :algoritms:
+   
+** <2020-12-28 lun>
+   :LOGBOOK:
+   CLOCK: [2020-12-28 lun 14:43]--[2020-12-28 lun 15:20] =>  0:37
+   CLOCK: [2020-12-28 lun 14:12]--[2020-12-28 lun 14:43] =>  0:31
+   :END:
+*** Adding Hector's code to the strategies                        :algoritms:
+*** Added the class use-a-neighborhood-generator                  :algoritms:
+    The idea is to test if with that class we can avoid the generation of the macros
+*** Coding by hand an exploration using Hector's generators       :algoritms:
+    Discovered that the clone is not working with Hector's classes :-(.
+    I'll have to rewrite that.  I suppose I'll start that work tomorrow.
+    
+** <2020-12-27 dom>
+   :LOGBOOK:
+   CLOCK: [2020-12-27 dom 15:25]--[2020-12-27 dom 17:35] =>  2:10
+   :END:
+*** Added a delta-cost* function                                      :dcost:
+    This function doesn't create a new working copy on each call :-o
+*** Tested the delta-cost* function in an algorithm         :algoritms:dcost:
+*** Added Hector's code for the neighborhood generation              :hector:
+*** Reading how to modify the strategies                          :algoritms:
+    to include Hector's code.
+** <2020-05-14 jue>
+*** Add two more CVRP problemas                                        :data:
+** <2020-05-11 lun>
+*** changing the directories [20/20]
+  - [X] vrp-algorithms.org
+  - [X] vrp-classes.org
+  - [X] vrp-criteria.org
+  - [X] vrp-data.org
+  - [X] vrp-delta-cost.org
+  - [X] vrp-emacs-utils.el
+  - [X] vrp-initial-routes.org
+  - [X] vrp-journal.org
+  - [X] vrp-moments.org
+  - [X] vrp-neighborhood-exploration-macros.org
+  - [X] vrp-neighborhood-operations.org
+  - [X] vrp-neighborhood-simulation.org
+  - [X] vrp-py-babel-tangle
+  - [X] vrp-py-babel-tangle.sh
+  - [X] vrp-rejected.org
+  - [X] vrp-search-strategies.org
+  - [X] vrp-suite.org
+  - [X] vrp-tangle-all.sh
+  - [X] vrp-tests.org
+  - [X] vrp-tutorials.org
+** <2020-05-10 dom>
+*** changing the directories [8/21]
+  - [X] vrp-algorithms.org
+  - [X] vrp-classes.org
+  - [X] vrp-criteria.org
+  - [X] vrp-data.org
+  - [X] vrp-delta-cost.org
+  - [X] vrp-emacs-utils.el
+  - [X] vrp-initial-routes.org
+  - [ ] vrp-journal.org
+  - [ ] vrp-moments.org
+  - [ ] vrp-neighborhood-exploration-macros.org
+  - [ ] vrp-neighborhood-operations.org
+  - [ ] vrp-neighborhood-simulation.org
+  - [ ] vrp-py-babel-tangle
+  - [ ] vrp-py-babel-tangle.sh
+  - [ ] vrp-rejected.org
+  - [ ] vrp-search-strategies.org
+  - [X] vrp-suite.org
+  - [ ] vrp-tangle-all.sh
+  - [ ] vrp-tests.lisp
+  - [ ] vrp-tests.org
+  - [ ] vrp-tutorials.org
+** <2020-04-16 jue>
+*** Adding notes and TODOs.                                           :suite:
+** <2020-04-15 mié>
+*** Multiple depots works well                                        :suite:
+** <2020-04-14 mar>
+*** Worked on multiple depots                                         :suite:
+** <2020-04-13 lun>
+*** Wrote a tutorial on operations for JJ                             :suite:
+*** Removed emacs keybindings for the insertion of src-blocks         :emacs:
+*** Worked on end-depot                                               :suite:
+    - [X] add the class has-one-depot
+    - [X] add the class has-an-end-depot
+    - [X] modified some other classes to use the previous ones
+** <2020-04-12 dom>
+*** Extended CVRP to deal with finite fleet                           :simul:
+** <2020-04-09 jue>
+*** Wrote code for counting better neighbors                          :strat:
+    The code is in the strategies as a tutorial for Hector.
+** <2020-02-10 lun>
+*** Exported the symbol with-basic-solution                           :suite:
+*** Fixed bug on cvrp-initial-solution-random                         :utils:
+*** Created data to analyze statistical property of criteria          :utils:
+** <2020-01-27 lun>
+*** Added a tutorial for the computation of the delta-cost            :dcost:
+** <2019-09-16 lun>
+*** Fixed problem with stream in pp-route                             :suite:
+    Now it correctly prints the solution to any stream.
+*** Adding problem with time window as a tutorial for JJ              :simul:
+** <2019-08-05 lu.>
+*** Added Heidy's code                                                :strat:
+**** Adding Heidy's strategy for identifying the repeated neighbors
+     - Adding the classes and the methods.
+     - Tested a full example.
+** <2019-08-01 ju.>
+*** Adding Heidy's code                                               :strat:
+    - Creating its own org heading.
+    - Added all the trie related functions.
+** <2019-07-31 mi.>
+*** Adding Heidy's code                                               :strat:
+    - Creating its own org heading.
+** <2019-07-31 mi.>
+*** Adding Heidy's code                                               :strat:
+    - Read everything and organized things on the .lisp file
+** <2019-06-05 mié>
+*** Fixed bug in make-initial-solution-for-cvrp-random            :algoritms:
+*** Working on Sherlhy's code
+    - Adding the make-empty-route-for-problem for CUPET.
+** <2019-05-30 jue>
+*** Started to add a random feasible solution for cvrp                :simul:
+    But didn't finish it :-(
+** <2019-05-12 dom>
+*** Adding the classes required to test DAFNE's problem             :classes:
+**** Added the class basic-product
+**** Added the class multi-compartment-vehicle
+**** Added the class clients-constrained-vehicle
+**** Added the class basic-cupet-client
+**** Added the class basic-cupet-vehicle
+**** Added the function set-product-demand
+**** Added the function set-compartment-capacity
+**** Added a basic-cupet-problem
+*** Testing Sherlhy's code generation with a basic-cupet-problem :initialroutes:
+** <2019-05-05 dom>
+*** Working on methods and functions for Sherlhy's work       :initialroutes:
+**** Adding functions and properties to deal with DAFNE's problem
+** <2019-03-13 mié>
+*** Working on methods and functions for Sherlhy's work       :initialroutes:
+**** Working on filters for insertion
+** <2019-02-18 lun>
+*** Working on methods and functions for Sherlhy's work       :initialroutes:
+**** Adding the filters for insertion
+** <2019-02-17 dom>
+*** Working on methods and functions for Sherlhy's work       :initialroutes:
+**** Added the filters for selection
+** <2019-02-14 jue>
+*** Moved the tutorials to a different file                           :suite:
+*** Working on methods and functions for Sherlhy's work       :initialroutes:
+** <2019-02-13 mié>
+*** Writing a tutorial for Heidy                                      :strat:
+    This is a tutorial about how to create solutions, and operations, and how to simulate the operations.  It should be an introductory tutorial for the creation of new search strategies or new selection strategies.
+** <2019-01-27 dom>
+*** Fixing heap exhausted bug                                         :strat:
+*** Added the classes
+    - random-improvement-with-candidates
+    - random-improvement (without-candidates)
+*** Added the inefficient and smart versions of these methods         :strat:
+    
+*** Added the f-n135-k7-problem                                        :data:
+** <2019-01-24 jue>
+*** Looking for bug in IVNS.  Found it.                               :simul:
+    It should be in the length of the best-neighbors list in +random-improvement+.
+** <2019-01-16 mié>
+*** Added the faster tangle in python                                 :emacs:
+** <2019-01-15 mar>
+*** Added a vrp-tangle-all-files without the tests                    :emacs:
+    Now that tangle is a lot faster.
+** <2019-01-10 jue>
+*** Added data for a-n80-k10                                           :data:
+** <2019-01-09 mié>
+*** Fixed the memory leak in the smart vns-with-shake             :algoritms:
+*** Wrote a tutorial for Camila                                       :suite:
+** <2019-01-08 mar>
+*** Added the smart vns with shake                                :algoritms:
+*** Found a bug in the smart vns with shake                       :algoritms:
+    There is a memory leak :-(
+** <2019-01-07 lun>
+*** Removed the calls to vrp-log                                    :moments:
+*** Added the smart-vns                                           :algoritms:
+    In this case smart means to create the code for the criteria only once.
+*** Added the smart-vns with bar                                  :algoritms:
+** <2019-01-06 dom>
+*** Found out why undo-delta-cost-computation was slow                :dcost:
+*** Now the * macros are actually faster than the standards           :dcost:
+** <2019-01-05 sáb>
+*** Added the doneighborhood* macros [2/2]                      :dcost:simul:
+    - [X] doselect-subroute-with-length*
+    - [X] doinsert-subroute*
+*** Wrote a macro for doselect-subroute*                        :dcost:simul:
+*** Wrote a macro for doinsert-subroute*                        :dcost:simul:
+*** Found a bug in the undo-delta-cost-computation                    :dcost:
+    As the method was specialized in t for the operation, when it processes a composite operation, it also processes it and adds more info to the stack, than what we want.  I'm going to solve that now.
+*** Fixed the bug by specializing the undo-delta-cost                 :dcost:
+    only on the operations that we are interested in (namely, op-select-client and op-insert-client).
+*** Added the doselect-subroute* (variable-length)              :dcost:simul:
+*** Added doreverse-subroute*                                   :dcost:simul:
+*** Added doswap-subroutes*                                     :dcost:simul:
+*** Added doadd-route*                                          :dcost:simul:
+*** Adding the strategies to use the * macros                         :strat:
+*** Added classes for the strategies                                  :strat:
+    - Added the class compute-delta-cost-inefficiently
+    - Added the class compute-delta-cost-with-smart-macros
+    - Added the class exhaustive/efficient-neighborhood-search-strategy
+*** Added methods for the blueprint updates                           :strat:
+*** Testing the new strategies                                    :algoritms:
+** <2019-01-04 vie>
+*** Adding the undo-delta-cost-computation                            :dcost:
+    - wrote the generic function undo-delta-cost-computation.
+    - wrote a macro for the creation of the undo-delta-cost-computation
+    - used the macro to write the undo-delta-cost-computation [2/2]
+      - [X] delta-distance*
+      - [X] delta-basic-capacity-action*
+*** Added the undo-finish-delta-cost-computation                      :dcost:
+    - added a generic-function for this 
+    - modified the previous macro to use it for this function too.
+    - used the macro to write the undo-finish-delta-cost [1/1]
+      - [X] delta-basic-capacity-penalty-action*
+*** Added simulate-simpler-ops-macro*                                 :simul:
+*** Added undo-simpler-ops-macro*                                     :simul:
+*** Changed the make-do-neighborhood-macros to accept more params     :simul:
+    I want to be able to pass the simulate-simpler-ops-macro as a parameter.
+*** Added doselect-client*                                      :dcost:simul:
+*** Added doinsert-client*                                      :dcost:simul:
+*** Changed the make-do-neighborhood-static-macro                     :simul:
+*** Added the macro doswap-clients*                                   :simul:
+*** Adding the doneighborhood* macros                           :dcost:simul:
+    These are macros that everytime they simulate a neighborhood operation, they also compute the delta-cost after that operation.  Also, after undoing the neighborhood operation, they also undo the delta-cost computation.
+** <2019-01-03 jue>
+*** Adding the undo-delta-cost computation                            :dcost:
+    The current idea is to store the previous value in a stack and then in the undo-delta-cost-computation just pop it.
+*** Added the has-stack class
+*** Added the class compute-delta-distance-action*
+*** Wrote the compute-delta-cost-after for compute-delta-distance-action*
+    - Wrote a macro for the creation of these compute-delta-distance-action*
+    - Tested the macro
+*** Used the macro to add compute-delta-cost-after for delta-distance-action*
+*** Added compute-delta-basic-capacity-action* and compute-delta-cost-after
+*** Added the class delta-basic-capacity-penalty*-action
+*** Added before method for finish-delta-cost-computation
+
+*** Added the class delta-basic-cvrp*
+*** Added the :before method for compute-delta-cost-after  
+** <2018-12-27 jue>
+*** Last attempt at the smart* versions                               :simul:
+    - Added more constraints but the change of routes discouraged me :-/.
+      But I found a solution!!!
+      The solution is that if we are using rerehg with rehreg, then in the rerehg we only need to process it if we are in the same route :-o.
+*** Added the constraints to rerehg! \o/.                             :simul:
+*** Added the constraints to rehrehg.                                 :simul:
+** <2018-12-26 mié>
+*** Writing the smart* version of some classical criteria             :simul:
+   - [X] rehreg
+*** Writing a macro to compare a criteria* to a set of criteria*      :simul:
+*** Decided to stop the construction of the smart* criteria           :simul:
+** <2018-12-25 mar>
+*** Added the constraints to the official rehrehgs                    :simul:
+*** Tested the smart versions on a vns :-o.  They worked!!! \o/       :simul:
+*** Wrote the smart* versions of some classical criteria              :simul:
+   - [X] rab
+   - [X] rarb
+   - [X] rarac
+   - [X] ref
+   - [X] rerf
+   - [X] rereg
+   - [X] rehf
+   - [X] rehrf
+    
+** <2018-12-24 lun>
+*** Added constraints to rerehgs                                      :simul:
+    - Added the case |c1| > 1, |c2| = 1
+    - Added the case |c1| > 1, |c2| > 1
+      This one is tough :-(.
+*** Added constraints to rehrehgs                                     :simul:
+     - figured out the constraints for rehrehgs.
+     - I did it!!!
+** <2018-12-22 sáb>
+*** Adding constraints to rerehg                                      :simul:
+    - Added the case |c1| = |c2| = 1
+    - Added the case |c1| = 1, |c2| > 1
+** <2018-12-21 vie>
+*** Work with Iosvanny at the school                                  :simul:
+    - Added constraints to rerfs    
+    - Added constraints to reregs 
+    - Added constraints to rehfs   
+    - Added constraints to rehregs
+*** Added the multiple routes constraints to rehreg                   :simul:
+** <2018-12-18 mar>
+*** Added the ex-cond constraint [4/4]                                :simul:
+    - [X] doselect-client
+    - [X] doselect-subroute
+    - [X] doinsert-client
+    - [X] doinsert-subroute
+*** Added the ex-cond constraint to the random-macros                 :simul:
+*** Adding constraints to rerf                                        :simul:
+** <2018-12-17 lun>
+*** Extending the macro explore-neighborhood-criteria-v2              :simul:
+    to consider any solution and not only 1-route solution.
+*** Wrote the function clone-working-copy-as-solution                 :simul:
+*** Found bug in the explore-neighborhood-criteria-v2                 :simul:
+    When I pass two doselect-route, there it creates an invalid solution. 
+*** Added more key parameters to explore-neighborhood-criteria-v2     :simul:
+    - print-neighborhood
+    - print-smart-neighborhood
+    - show-intersection
+*** Adding constraints to rerf                                        :simul:
+** <2018-12-14 vie>
+*** Writing macro to test the efficiency of the criteria              :simul:
+    - wrote a first (not too configurable version)
+    - adding more configuration to the macro
+** <2018-12-12 mié>
+*** Added the other args to the random-neighborhood macros            :simul:
+    - select-subroute-with-length
+    - select-subroute with variable length
+    - insert-subroute
+*** Adding constraints to the rehrehg                                 :simul:
+*** Found repeated elements in refs and rehfs :-(                     :simul:
+** <2018-12-10 lun>
+*** Iosvanny solved how not to repeat elements in swap-subroutes      :simul:
+** <2018-12-06 jue>
+*** Working on a solution for the smart swap-subroutes                :simul:
+    - wrote a lot of tests and experiments.
+    - I think that I found two causes for the repetition:
+      - z2.pos = z1.pos (that should not happen), and
+      - the other is that we go 1 pos further that what we should :-(
+        One example could be the following:
+
+        (1 2 3 4 5 6) -> (2 3 1 4 5 6)
+           [(<c:2> <c:3>) | (<c:1>)]
+           [(<c:2> <c:3>) | (<c:1> <c:4>)]
+
+        I'm not sure yet about how we could solve it :-(, But I will! :-P.
+ 
+** <2018-12-05 mié>
+*** Adding constraints to doselect-subroute-with-length               :simul:
+    - added the lex-cond.  It worked.
+** <2018-11-29 jue>
+*** Adding constraints to the subroutes macros                        :simul:
+    - Added unless-forbidden-coord to doselect-subroute.
+*** Added a macro for the end value of the loop                       :simul:
+   - Added the end clause macro
+   - Added the macro to doselect-client
+   - Added the macro to doselect-subroute
+   - Added the macro to doinsert-client
+*** Added the constraints to the doselect-subroute                    :simul:
+*** Added the constraints to the doinsert-subroute                    :simul:
+*** Adding some smart neighborhood-criteria for subroute
+** <2018-11-28 mié>
+*** Adding constraints to the subroutes macros                        :simul:
+    - Adding unless-forbidden-coord to doselect-subroute.
+    - Left everything broken :-(
+** <2018-11-27 mar>
+*** Adding constraints to the subroutes macros                        :simul:
+    - Added a macro for the start of the loop
+    - Modified the beginning of doselect-subroute to use the macro
+    - Adding unless-forbidden-coord to doselect-subroute.
+** <2018-10-07 dom>
+*** added the current-coord and prev.insert.coord                     :simul:
+*** adding the smart rarb                                         :algoritms:
+** <2018-10-06 sáb>
+*** Added the inserted-client info API [3/3]
+    - [X] get-inserted-client-info
+    - [X] get-inserted-client-route
+    - [X] get-inserted-client-pos
+*** Added the constraints to the doinsert-macro                       :simul:
+    - refactored the macro to just one for and just one do
+    - added the constraint
+*** Added the macro unless-forbidden-coord to select and insert       :simul:
+*** Added the :ex constraint                                          :simul:
+*** Turned some existing classical criteria into smart ones       :algoritms:
+    - rab
+    - rarac
+** <2018-10-05 vie>
+*** Added constraints to the do-neighborhood macros with lists        :simul:
+**** doselect-client [2/2]
+     - [X] le, lt
+     - [X] dt
+**** Moved the do-neighborhood macros constraints to run-time         :simul:
+*** The constraints works!!!  Wrote a smart swap \o/                  :simul:
+*** Changed the cname.property to symbol-macrolets                    :simul:
+    Now they are always updated.
+*** Worked on the automatic generation of smart neighborhoods         :strat:
+    The idea is to incorporate the constraints to the do neighborhood macros to the automatic generation of the criteria.
+
+    Modified the generate-macro-headings method to include the extra parameters and everything worked :-o.
+** <2018-10-04 jue>
+*** Adding constraints to the do-neighborhood macros                  :simul:
+**** doselect-route [3/3]
+     - [X] ge, gt
+     - [X] le, lt
+     - [X] dt
+**** doselect-client [1/1]
+     - [X] ge, gt
+*** Added the list option to the neighborhood macros                  :simul:
+** <2018-10-02 mar>
+*** Added a good shake                                            :algoritms:
+** <2018-09-14 vie>
+*** Added the add-route operation                                     :simul:
+    - Added the simulate-neighborhood-operation
+    - Added the get-simpler-operations-from
+    - Added the undo-neighborhood-operation
+    - Added the do-neighborhood macros
+    - Added the apply-neighborhood-operation
+    - Added the delta-cost functions
+*** Changed the delta-cost-computation to deal with add-route         :dcost:
+** <2018-09-13 jue>
+*** Added the functions get-(delta-)cost-from-action                  :dcost:
+*** Added the finish-apply-operations                                 :simul: 
+*** Adding the add-route operation                                    :simul:
+    - added the class.
+    - added the number-of-routes slot to the basic-working-copy.
+    - updated pp-solution to use number-of-routes.
+    - updated doselect-route to use number-of-routes.
+    - updated random-select-route to use number-of-routes.
+** <2018-09-11 mar>
+*** Fixed bug on jump-around-search-strategy                          :strat:
+    Now we generate the code with the jump-around-return-last-neighbor selection strategy.
+** <2018-09-08 sáb>
+*** Added a return-last-neighbor strategy                             :strat:
+*** Added a vns-with-shake                                        :algoritms:
+*** Fixed several bugs on the code generation                         :strat:
+*** Found a bug in jump-around-search-strategy                        :strat:
+** <2018-09-06 jue>
+*** Added the jump-around strategy                                    :strat:
+**** Added the class has-a-cumulative-delta-cost
+**** Added the inside-let-code for the has-a-cumulative-delta-cost
+**** Added the inside-macro for the has-a-cumulative-delta-cost
+**** Added everything for the jumping strategy
+**** Fixed it to return the appropriate values in the best-value
+*** Adding the optional-parameter initial-best-delta-cost             :strat:
+**** Added an optional parameter to all the generated functions 
+** <2018-09-02 dom>
+*** Added the random-search strategy                                  :strat:
+**** Added the class random-neighborhood-search-strategy
+**** Added the methods for the code generation
+**** Tested some cases.
+** <2018-09-01 sáb>
+*** Refactored the do-neighborhood macros                             :simul:
+    Now we have two macros:
+      - simulate-simpler-ops-macro
+      - undo-simpler-ops-macro
+*** Added the random-neighborhood macros                              :simul:
+**** Added random-select-route
+**** Added random-select-client
+**** Added random-insert-client
+**** Added random-swap-clients
+**** Added random-select-subroute
+**** Added random-insert-subroute
+**** Added random-reverse-subroute
+**** Added random-swap-subroutes
+*** Added the cname.info to the neighborhood macros                   :simul:
+** <2018-08-31 vie>
+*** Added the the search strategies first and random improvement      :strat:
+*** Added the class first-improvement                                 :strat:
+*** Added the methods for first-improvement                           :strat:
+*** Added the class random-improvement [2/2]                          :strat:
+**** DONE Added the class has-candidates
+**** DONE Added the methods for has-candidates-for-best-neighbor
+*** No need to add methods to random-improvements =:-o=               :strat:
+*** Added some classical criteria                                 :algoritms:
+**** Added a macro to create the criteria 
+*** Added a classical VNS                                         :algoritms:
+**** Added the VNS
+**** Tested the VNS
+*** Fixed bug in apply-operation-to-solution for select-subroute      :dcost:
+    The problem is that as we add a select-subroute to the ops-list, at some moment we need to apply that operation to the working-copy.  The solution is to define a method that does nothing in that situation.  I'm going to do that.
+** <2018-08-30 jue>
+*** Tested the make-neighborhood-function                             :strat:
+*** Added the file vrp-algorithms.org                             :algoritms:
+*** Added a make-initial-solution for the cvrp                    :algoritms:
+*** Tested exhausive-search with a real problem             :algoritms:strat:
+** <2018-08-29 mié>
+*** Adding generic functions for automatic search-strategies [8/8]    :strat:
+**** DONE Added generate-inside-let-initializations
+**** DONE Added generate-outside-let-initializations
+**** DONE Added generate-code-inside-macros
+**** DONE Added the class best-improvement
+**** DONE Added generate-code-outside-macros
+**** DONE Added generate-return-code
+**** DONE Added a method to fully populate a blueprint
+**** DONE Added a method to generate the code from the blueprint
+** <2018-08-28 mar>
+*** Working on automatic search-strategies [2/2]                      :strat:
+**** DONE Added the basic-blueprint class                             :strat:
+**** DONE Added the generate-macro-headings method                    :strat:
+** <2018-08-26 dom>
+*** Add code for the search-strategy tutorial                         :strat:
+    - exhausive / best-improvement.
+*** Fixed the code in the tutorial to match the actual code           :strat:
+*** Added the cost slot to the basic-solution                       :classes:
+*** Added the cost slot to the basic-working-copy                   :classes:
+** <2018-08-25 sáb>
+*** Added a store-client-selected-during-apply [2/2]                  :dcost:
+    - [X] added initialize-selected-clients-during-apply
+    - [X] adding store-client-selected-during-apply
+*** Added pp-solution for basic-solution [2/2]                        :dcost:
+    - [X] add pp-route for basic-route
+    - [X] add pp-route for basic-solution
+*** Added a retrieve-client-selected-during-apply [1/1]               :dcost:
+    - [X] adding retrieve-client-selected-during-apply
+*** Added the apply-operation-to-solution [5/5]                       :dcost:
+    - [X] added the slot to basic-working-copy
+    - [X] added the initialization to prepare-solution-bla
+    - [X] add the generic function
+    - [X] add the method for selection / basic-working-copy
+    - [X] add the method for insertion / basic-working-copy
+*** Added the apply-set-of-operations                                 :dcost:
+*** Added the function delta-cost                                     :dcost:
+    This function receives a solution, a set of operations, an action and returns the delta-cost of applying those operations to the solution.
+*** Started to write a huge tutorial on search-strategy               :dcost:
+** <2018-08-24 vie>
+*** Fixed bug on tangling process                               :suite:dcost:
+*** Added compute-delta-cost-after distance/insertion                 :dcost:
+*** Added the action delta-basic-capacity-action                      :dcost:
+*** Added the generic function initialize-action-for-bla-bla          :dcost:
+*** Added compute-delta-cost-after basic-capacity [2/2]               :dcost:
+    - [X] selection
+    - [X] insertion
+*** Added the initializations for the CVRP action  [2/2]              :dcost:
+    - [X] delta-distance
+    - [X] delta-basic-capacity-action
+*** Added the delta-cvrp-action                                       :dcost:
+*** Added the function make-routes-feasibility-array                  :dcost:
+*** Added the delta-basic-capacity-penalty-action                     :dcost:
+*** Added the initialization for the previous class                   :dcost:
+*** Added the finish-delta-cost-computation                           :dcost:
+** <2018-08-23 jue>
+*** Added the compute-delta-cost-after for distance and selection     :dcost:
+*** Added the with-cvrp-problem                                       :dcost:
+** <2018-08-22 mié>
+*** Changed the subroute-management to arrays                         :dcost:
+    instead of lists.
+** <2018-08-20 lun>
+*** Added a generic make-macro for the do-static-operation            :dcost:
+*** Changed the macro doswap to use the do-static-operation macro     :dcost:
+*** Worked (in vain) on make-do-neighborhood-macros for selection     :dcost:
+    Didn't work.
+*** Added the undo-neighborhood-operation for select-subroute         :dcost:
+*** Added the macro doselect-subroute [2/2]                           :dcost:
+    - [X] add doselect-subroute-with-length
+    - [X] add doselect-subroute 
+*** Added operation the insert-subroute [3/3]
+    - [X] add the class
+    - [X] add the get-simpler-operations-from
+    - [X] add the doinsert-subroute macro
+
+*** Added operation the reverse-subroute [4/4]
+    - [X] add the class
+    - [X] add the simulate-neighborhood-operation
+    - [X] add the undo-neighborhood-operation
+    - [X] add the doreverse-subroute macro
+
+**** 
+
+*** Added the operation swap-subroutes [3/3]
+    - [X] add the class
+    - [X] add the get-simpler-operations-from
+    - [X] add the doswap-subroutes
+
+** <2018-08-19 dom>
+*** Worked unsuccesfully on an (generic) improvement to the do-neighborhood macros :dcost:
+    - Changed the macro methods to not return a lambda.
+      The idea is to use special variables.
+    - changed the functions to use special variables [5/5]
+      - [X] make-simulate-simpler-ops-code
+      - [X] make-undo-simpler-ops-code
+      - [X] make-compute-route-end-code
+      - [X] make-op-instance-code
+      - [X] make-get-simpler-ops-and-stop-code
+    - Changed the make-macro code to use special variables. Didn't work.
+    - Rejected that idea.  I couldn't make it work :-(
+    - I'm going to make one last attempt based on macros. Didn't work.
+*** Changed the name of the file vrp-delta-cost.org                   :dcost:
+    To vrp-neighborhood-simulation.org 
+*** Added the operation swap-clients                                  :dcost:
+*** Adding the subroute management                                    :dcost:
+**** added the select-subroute operation
+**** added the selected-subroutes slot to basic-working-copy
+**** added the subroute management API [5/5]
+     - [X] add-subroute-info
+     - [X] get-subroute-info
+     - [X] get-subroute-size
+     - [X] subroute-reversed-p
+     - [X] mark-subroute-as-reversed
+*** added the simulate-neighborhood-operation for select-subroute     :dcost:
+**** added the method get-simpler-operations-from select-subroute     :dcost:
+** <2018-08-18 sáb>
+*** Added the function get-simpler-operations-from                    :dcost:
+*** Added the format-boxed function                                   :utils:
+*** Added the bformat function (an alias for format-boxed)            :utils:
+*** Added an initial version of make-do-neighborhood-macros            :dcost:
+    - it needs more tailoring to make it as generic as I want, but it is an good start
+      Right now there are two macros: one for selections from the route, and another for insertions.  So far it works to generate the doselect and doinsert client macros. 
+*** Working on an (generic) improvement to the do-neighborhood macros :dcost:
+    - added the function make-simulate-simpler-ops-code
+    - added the function make-undo-simpler-ops-code
+    - added a (generic) function to compute the end of the route
+      - description
+        - If this is an insertion it should be (1+ (route-length))
+          because we can insert at the end
+        - If it is a selection it should be
+          ((route-length) - selection-length) + 1
+          In the case of select-client the selection-length is 1
+          In the case fo select-subroute the selection-length is the
+          length of the subroute. 
+      - generic-function idea
+        I made this a generic function and specialized it on the select and insert client classes.
+    - added a (generic) function to make the op initialization
+
+      The idea is that the do-neighborhood-operation macros differ in the way that the operation is created.  In the select-client operation we need to bind the variable cname to (1+ selections-count), but in the case of the insertions we don't need to do that, we just instantiate the operation.  With this function I want to write the code for this initialization for each operation expressed as an instance of a class.
+    - added a (generic) function to get the simpler-ops and the stop
+** <2018-08-17 vie>
+*** Added the variable *vrp-stop-neighborhood-search*                 :dcost:
+*** Added the macros to explore the neighborhood [3/3]                :dcost:
+    - [X] doselect-route
+    - [X] doselect-client
+    - [X] doinsert-client
+** <2018-08-16 jue>
+*** Added client-c1-was-before-c2 [4/4]                               :dcost:
+    - [X] Added the slot to the class
+    - [X] Added the initialization to prepare-solution-for...
+    - [X] Added generic-function
+    - [X] Added the method for basic-working-copy
+*** Added the undo-operation functions [7/7]                          :dcost:
+    - [X] undo-routes-lengths for selection
+    - [X] undo-routes-lengths for insertion
+    - [X] undo-actual-position
+    - [X] undo-selected-clients for selections
+    - [X] undo-selected-clients for insertions
+    - [X] undo-insertions-made for insertions
+    - [X] undo-insertions-made for selections
+*** Added the undo-neighborhood-operation method. 
+** <2018-08-15 mié>
+*** Added the -after to the updating-functions                        :dcost:
+    - update-routes-lengths-after
+    - update-selected-clients-after
+    - update-insertions-after
+** <2018-08-14 mar>
+*** Added the selected-clients-management                             :dcost:
+     - Added the selections-count slot
+     - Added the update-selected-clients
+     - Added the client-selected-at-operation
+     - Added the info-of-client-selected-at-operation
+     - Added the route-of-client-selected-at-operation
+     - Added the pos-of-client-selected-at-operation
+     - Added the incf-pos-of-client-selected-at-operation
+     - Added the decf-pos-of-client-selected-at-operation
+     - Added the update-selected-clients for selection
+     - Added the update-selected-clients for insertion
+*** Added the function client-at                                      :dcost:
+    - added the function get-route-with-id
+    - added the function get-client-at-pos
+    - added the function client-at
+*** Added the function there-was-an-insertion-at                      :dcost:
+*** Added the function route-length                                   :dcost:
+*** Added emacs keybindings to change to the REPL                     :emacs:
+*** Added the insertions-management                                   :dcost:
+    - there-was-an-insertion-at
+    - update-insertions
+*** Added elements to prepare-solution-for-neighborhood-exploration   :dcost:
+     - selections-count
+     - selected-clients
+*** Added the pp-solution to tests the simulate...operation           :dcost:
+*** Added the simulate-neighborhood-operation                         :dcost:
+    - added the generic-function
+    - added a method for any op and basic-working-copy
+*** Found error on pp-solution after operations                       :dcost:
+    Acutally it was a mistake in the design of the tests.
+*** Added a variable to output debug                                  :suite:
+** <2018-08-13 lun>
+*** Added the classes for the delta-cost-computation                  :dcost:
+**** Added the class neighborhood-operation
+**** Added the class operation-select-client
+**** Added the class operation-insert-client
+*** Added an initial version of the working copy                      :dcost:
+    - added the solution slot.
+    - added the actual-position-functions-stack
+    - added the insertion-made
+    - added the selected-clients
+    - added the initial-routes-lengths
+*** Added the actual-position function                                :dcost:
+    - Added the generic-function
+    - Added the make-initial-actual-position-function
+    - Added the update-actual-position-after generic function
+    - Added the update-actual-position-after generic method for select
+    - Added the update-actual-position-after generic method for insert
+*** Added the vrp-delta-cost file to the automatic loading            :suite:
+*** Started the prepare-solution-for-neighborhood-exploration         :dcost:
+     - make-initial-actual-position-function
+     - initialize the insertions-made list to nil
+     - make-initial-route-lengths
+     - set the actual routes-lengths
+*** Started with the routes-management                                :dcost:
+    - added the make-initial-route-lengths method
+    - added the initial-route-lengths slot
+    - added the routes-length slot
+    - renamed the functions to *-routeS-lengthS*
+      Added s at the end of routes and lengths.
+    - added the update-routes-lengths methods
+*** Started work on the selected-clients API                          :dcost:
+     - added the initialize-selected-clients
+*** Started with the insertions management                            :dcost:
+    but I discovered that I needed the client-selected-at-operation.  So I started to work or the selected-clients array.
+*** Added the vrp-switch-to-journal-other-frame                       :emacs:
+*** Added some keybindings to speed up the journal                    :emacs:
+** <2018-08-12 dom>
+*** Moved all the journal entries and TODOs to a single file          :suite:
+*** Added and tested the problem A-n32-k5                              :data:
+*** Added and tested the problem A-n65-k9                              :data:
+*** Added the file vrp-delta-cost.org                                 :dcost:
+** <2018-08-10 vie>
+*** Changed the tangling of the src blocks to a folder named src      :suite:
+*** Added a global variable to control the output of the checks       :suite:
+*** Added the macro with-basic-cvrp-solution.                       :classes:
+** <2018-08-09 jue>
+*** Added the distance functions.                                     :suite:
+*** Created the file with the real vrp data                            :data:
+*** Added the description to the data file                             :data:
+*** Added the A-n33-k6 data                                            :data:
+*** Added the function make-basic-cvrp-problem                         :data:
+** <2018-08-08 mié>
+*** Added the basic-penalty-action.                                 :classes:
+*** Changed the basic-vehicle-capacity-action                       :classes:
+      Now it accumulates the capacity-violations from all the routes.
+*** Added the basic-capacity-penalty-action                         :classes:
+*** Added the basic-cvrp-action                                     :classes:
+*** Added a basic penalty-strategy.                                 :moments:
+*** Added a :before to the simulate-solution to                     :moments:
+      set capacity-violation to 0.
+*** Changed the update basic-vehicle-capacity-action                :moments:
+      Now it accumulates the unfeasibilities in all the routes.
+*** Added the moment finish-the-solution-simulation                 :moments:
+*** Added a method to finish-the-solution-simulation                :moments:
+      to penalize capacity violations.
+*** Tested a full cvrp solution                                     :moments:
+** <2018-08-07 mar>
+*** Added a basic-solution-distance-action                          :classes:
+*** Added a method for the moment simulate-solution                 :moments:
+*** Made a small change to the way the vrp-log is formatted         :moments:
+*** Added an after method for the moment simulate-route             :moments:
+    to accumulate the total-distance.
+** <2018-08-06 lun>
+*** Added the distance-from-to generic-function and method          :classes:
+*** Added the simulate-load-action                                  :classes:
+*** Added an after method to visit-client to update previous-client :moments:
+*** Added the methods for the moment move-from-to.                  :moments:
+*** Added the methods for the moment when-route-ends.               :moments:
+*** Added the methods for the action simulate-load-action           :moments:
+*** Added the methods for the moment simulate-route                 :moments:
+** <2018-08-05 dom>
+*** Fixed some details in the tests.                                  :suite:
+*** Added some new checks                                             :suite:
+    - check-non-nil
+    - check-obj=
+*** Added the class basic-cvrp-client                               :classes:
+*** Adding some actions for the cvrp                                :classes:
+    - route-distance-action
+    - basic-vehicle-capacity-action
+*** Fixing some tangling issues.                                    :moments:
+*** Adding moments generic functions.                               :moments:
+*** Added the generic-functions for the basic moments               :moments:
+*** Adding the methods for the moments                              :moments:
+    - unload (unconditionally-unload, demand-client)
+    - visit-client (primary t)
+    - visit-client (:after unload-vehicle)
+    - when-route-begins (primary simulation-route)
+    - when-route-begins (:after route-distance-action)
+    - when-route-begins (:after basic-vehicle-capacity-action)
+** <2018-08-02 jue>
+*** Added more checks to the unit-testing suite                       :suite:
+    - check-=
+    - check-eq
+    - check-str=
+*** Decided that I should write a make-check macro.                   :suite:
+*** Added the make-check macro to the unit-testing suite              :suite:
+*** Rewrote the check-something macros using the new macro.           :suite:
+*** Added the macro with-elements                                     :suite:
+    - Added the function get-description-from-list.
+    - Realized that this function is just getf.
+    - Removed the function get-description-from-list.
+    - Added the function remove-something-description-from-list
+    - Wrote the macro with-elements
+*** Started work with the moments                                   :moments:
+*** Added the package                                               :moments:
+*** Adding the defbehavior macro                                    :moments:
+    - Added the macro with-elements (in vrp-suite.org)
+*** Added the logging functionality                                 :moments:
+    - just added the level 1 functionality.
+** <2018-07-31 mar>
+*** Fixed small bugs on the tangling                                  :suite:
+*** Adding Yoel's classes                                           :classes:
+    - Added the vehicles
+    - Added the routes (route-for-simulation)
+    - Added the problems (up to cvrp-problem)
+** <2018-07-30 lun>
+*** working on the unit testing suite                                 :suite:
+      - added the check-t
+      - added the check-nil
+      - added the deftests
+      - added the variables
+        - *vrp-unit-testing-indent*
+        - *vrp-unit-testing-display-output*
+*** Adding the classes for a basic-problem                          :classes:
+*** Added the basic-classes                                         :classes:
+      - basic-client
+      - basic-depot
+      - g-depot
+      - basic-vehicle
+      - basic-route
+      - basic-solution
+      - basic-problem
+*** Added the macros                                                :classes:
+      - with-basic-clients
+      - with-basic-solution
+** <2018-07-29 dom>
+*** Started a new version after a really ugly deletion :-(            :suite:
+      Everything from the last week was lost.  But here we are starting over :-D.
+*** Added the literate programming environment                        :suite:
+*** Added the utilities                                               :suite:
+*** Added the random number generation                                :suite:
+*** Added the elementary generic-functions                            :suite:
+*** Added the macro def-vrp-class                                     :suite:
+*** Created the vrp-classes.org file                                :classes:
+    
+    
+* The next steps should be
+
+** TODO Add a vns with generators (not best)                         :hector:
+   The idea is to return a better neighbor and a better-best.
+** TODO Add a vns-best with adaptative neighborhood size
+    - the idea is that when we find an "optimum" with bounded neighborhoods, we could explore again all the neighborhoods that were bounded, with an increased bound :-o
+** TODO Add more strategies for the generators                       :hector:
+   - [ ] random-improvement-with-candidates-proportional
+** TODO Decide what to do with the candidates in Hector              :hector:
+   Right now we are only keeping track of the last N better neighbors.  Maybe it is better to do something different :-/.
+** TODO Add a simulated annealing VNS                             :algoritms:
+   It just returns the best neighbor and then
+   we accept it or not according to the rule in SA.
+** TODO Think about what to do with the discarded solutions       :algoritms:
+   The discarded solutions are good solutions found during the
+   exploration, that maybe we should go back and analyze them.
+** TODO Think about returning a solution as good as the current       :strat:
+   but different.
+** TODO Move all the primary methods for the moments to the same place :moments:
+   Right now they are mixed with the methods for the CVRP.  That's not right.
+** TODO change the name of search-with-a-basic-wc                     :strat:
+   to search-with-a-working-copy.
+** TODO make a file for each type of VRP                              :suite:
+** TODO Check make-working-copy to deal with inifinite-fleet          :simul:
+   I'd like the method make-working-copy to be smarter about what it has to create.  For instance, if it receives a basic-cvrp-solution that is also a has-inifite-fleet, I'd like him to return a working-copy-with-infinite-fleet and not a basic-working-copy :-(.  The problem with that is that it is doing what it is supposed to do, because basic-solution is more specific than has-inifite-fleet :-(.  And that's precisely what I want to solve :-(.
+** TODO In the make-empty-route add the clients in a random pos :initialroutes:
+** TODO Find out how to set the random seed                           :suite:
+** TODO Add a random-improvement with best-neighbor                   :strat:
+   The idea is to have a random-improvement that also returns the best neighbor found and compare it to the classic random-improvement.
+** TODO Add more problems to the data                                  :data:
+** TODO Merge the counting of neighbors                               :suite:
+*** TODO Add the classes for the counting of neighbors              :classes:
+** TODO Use the defbehavior for the search-strategy definition        :strat:
+** TODO Add neighborhood operations after exploring the criteria      :simul:
+   After we have run explore-neighborhood-criteria-v2 I want to be able to add some new operations.  For instance I'd like to see the result of smart - full-neighborhood, for instance.  That can be done creating some global variables and modifying them in the macro.
+
+   That should also be done using Heidy's work.
+** TODO Add several initial-solutions for the cvrp                :algoritms:
+** TODO Add an automatic testing mechanism                            :suite:
+    - add a string to id every check.  In the macro check, add the executable part to some (global) variable.  Then, when processing automatically all the tests, run the ones in that list and report the fails with the string used to id it.
+** TODO Write all the delta-moments using defneighbor                 :dcost:
+** TODO Design some statistic experiments to check what's going on    :suite:
+** TODO Automate the creation of the local search algorithms          :suite:
+   This is something similar to what we do with the search-strategies or even with the neighborhood criteria.  Maybe this should be Claudia Barcelo's thesis.
+** TODO Add an add-route-from-subroute operation                      :simul:
+** TODO Remove code duplication in undo-delta-cost-computation        :dcost:
+   Right now I need to duplicate the call to make-undo-delta-cost-computation with every instance of the operations that we want to process: op-select-client and op-insert-client.  I'd like to be able to pass that as a list (or something similar) and do it only once.
+** TODO Change the client-at function for a list                      :simul:
+   The idea is to replace the nested functions with a list and then the function just iterates through that list.
+   
+** TODO In Yoel's work, add a component initializations               :simul:
+   The idea is that when we start the simulation, we might need to initialize some components of the problem.  For instance, in a problem where the vehicles have a maximum number of routes, we need to set the current route to 0.
+
+** TODO [#C] Add a vns-shake with scramble of the criteria        :algoritms:
+** TODO [#C] Add the snippets to this project                         :emacs:
+** TODO [#C] Add a SA selection for the best neighbor                 :strat:
+   The idea is that in a given neighborhood we can select any neighbor as the best one (probably according to a probability that depends on the quality of the neighbor), and we can control that probability as the algorithm progresses.
+** TODO [#C] Unify the name conventions prepare/initialize            :dcost:
+   On one hand we have prepare-solution-for-neighborhood-exploration and on the other, we have initialize-action-for-bla-bla.  They both should be prepare or they both should be initialize.  Right now I prefer the `prepare' idea.
+** TODO [#C] Remove the code duplication in some actions*             :dcost:
+   The compute-delta-cost-after and the initialize-action-for-delta-cost-computation for basic-capacity-penalty-action are duplicated.  Find out a way to remove that code duplication.
+** TODO [#C] Remove the extra , to use the faster py tangle           :emacs:
+** TODO [#C] Add constraints to the random-neighborhood-macros [0/4]  :simul:
+   - [ ] random-select-client
+   - [ ] random-insert-client
+   - [ ] random-select-subroute
+   - [ ] random-insert-subroute
+** TODO [#C] Add criteria with selections after insertions            :simul:
+   This can be done if instead of trying to simulate the operations we actually apply them to the solution and undo them afterwards.  I think that it should not be that much slow.
+** TODO [#C] Add the random version of the doneighborhood* macros     :simul:
+** TODO [#C] Improve the macro creation process                       :simul:
+   with new macros that abstract everything that can be abstracted.
+** TODO [#C] Add a return best-found in random-search                 :strat:
+** TODO [#C] Add the extra configuration for make-neigh-function  :algoritms:
+   this means to add all the extra in-let, outside-let, outside-macros parameters.
+** TODO [#C] Add a parameter to the random-neighborhood macros        :simul:
+   The idea is that instead of just selecting on client, we could do something like
+   #+BEGIN_EXAMPLE
+   (random-select-client (c1 r1 wc 3)
+        code here)   
+   #+END_EXAMPLE
+
+   and then we would repeat that selection 3 times.
+** TODO [#C] Signal errors when the criterion description is wrong    :strat:
+   This is basically when they are asking for an operation that is not defined.
+** TODO [#C] Think about strategies during the local search algorithm :suite:
+   This means to think about changing selection-strategies at runtime.
+** TODO [#C] Add a new moment inside select/insert client             :dcost:
+   - The idea is that after selecting or inserting a client we can do things that depend of the type of client, route, solution, problem etc.  Maybe with this new moment we can save effort and code when dealing with new problems.
+** TODO [#C] Add variables to customize the pp-things                 :dcost:
+** TODO [#C] Add a class optimized for subroutes                      :dcost:
+   Maybe the idea is to create a code that automatically does this for us.
+** TODO [#C] Implement a smart search (find the best quickly)         :suite:
+** TODO [#C] Add several local search algorithms                  :algoritms:
+** TODO [#C] Change the selected-subroutes to an array?               :dcost:
+   Instead of a list with the selected-subroutes info, can we have the same info in a array indexed on the selected-subroutes id?  The idea is to get any info in O(1).
+** TODO [#C] Add several algorithms for the initial solution      :algoritms:
+** TODO [#C] Add all the problems for the CVRP                         :data:
+** TODO [#C] Add more real cvrp problems and test evaluation        :moments:
+** TODO [#C] Add the pp-operation                                     :dcost:
+** TODO [#C] Improve the unit-testing suite [0/3]                     :suite:
+*** TODO [#C] Add a description to what happens in the test
+*** TODO [#C] Add an automatic testing mechanism
+*** TODO [#C] When something fails locate it easily
+** TODO [#C] Add customization for bformat                            :suite:
+    - whether or not to add 2 ~% to the first =-line.
+** TODO [#C] Add a documentation file where everything is explained   :suite:
+** TODO [#C] Add the classes to implement Yoel for spdvrp           :classes:
+** TODO [#C] Think about the names of Yoel's classes                :classes:
+   - has-capacity instead of capacity-vehicle
+   - has-cargo instead of cargo-vehicle
+   - etc
+** TODO [#C] Improve the logging functionality                      :moments:
+   - Rigth now it is not quite readable :-(.
+   - Allow to pass several arguments (as in format)
+** TODO [#C] Add the level n (n > 1) logging functionality          :moments:
+** TODO [#C] Implement Yoel's methods to evaluate a spdvrp solution :moments:
+** TODO [#C] Implement the what-happens-when idea                   :moments:
+   This means to have a generic function that receives the name of a generic function and a list with its arguments and returns a description of what happens in the simulation with those parameters.
+** TODO [#C] Add data for the SPDVRP                                   :data:
+** TODO [#C] Add data for Dalita's problem                             :data:
+** TODO [#C] Find out how far is a (set of) solution from the history :suite:
+** TODO [#C] Add a generate-code for your problem in your language    :suite:
+   The idea is that with the what-happens-when idea, and an appropriate `language' to define all the operations in the suite, we could export the code for an specific problem for one of some defined languages :-o.  This could be done using Yasmany's work.
+** TODO [#C] Add a polymorphic make-do-neighborhood-macro             :dcost:
+
+    - find out about what to do with the variables that should be passed to the functions created with the methods.
+
+      Maybe a solution could be to pass everything to those functions and let them choose what they want.
+
+    - another idea is to automatically write the code for the macros using Yasmany's approach.
+** TODO [#C] Add a system to generate the math models for the VRP     :suite:
+   - generate an approximation using a deterministic approach
+   - use Oscar's idea of mutants
+     - generate solutions and check the constraints
+       
+       
+* To think about
+** Add more moments to the delta-cost-computation?                    :dcost:
+   I think that it could be convenient to have something for selections/insertions that depends of the combination of client/route/action.  This could be some generic-function.
+
+
+
+
+
+
+
+

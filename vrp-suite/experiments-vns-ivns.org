@@ -721,6 +721,12 @@ puedan guardarse en el mismo formato CSV.
 
         initial-solution
 
+        (constructor :random)
+        (criteria :basic)
+
+        criteria-label
+        configuration-label
+
         max-iter
         kmax
         max-no-improve
@@ -736,7 +742,10 @@ puedan guardarse en el mismo formato CSV.
 
         (penalty-factor 1000))
 
-  (initialize-seed seed)
+  "Ejecuta una corrida individual de VNS.
+
+Permite seleccionar el constructor, el conjunto de criterios y una
+etiqueta para identificar la configuración experimental."
 
   (let ((real-problem
          (if (symbolp problem)
@@ -748,130 +757,250 @@ puedan guardarse en el mismo formato CSV.
 
       (let ((result
              (vrp::vns-run-experimental
-              :problem real-problem
-              :seed seed
+              :problem
+              real-problem
 
-              :initial-solution initial-solution
+              :seed
+              seed
 
-              :max-iter max-iter
-              :kmax kmax
-              :max-no-improve max-no-improve
+              :initial-solution
+              initial-solution
 
-              :shake-max-tries shake-max-tries
+              :constructor
+              constructor
 
-              :vnd-mode vnd-mode
-              :vnd-max-rounds vnd-max-rounds
-              :vnd-max-no-improve vnd-max-no-improve
+              :criteria
+              criteria
 
-              :known-best known-best
-              :time-limit-seconds time-limit-seconds)))
+              :max-iter
+              max-iter
 
-        ;; Normalización para que VNS tenga el mismo schema CSV que IVNS.
-        (setf (getf result :algorithm)
-              "vns")
+              :kmax
+              kmax
 
-        (setf (getf result :known-best)
-              known-best)
+              :max-no-improve
+              max-no-improve
 
-        (setf (getf result :max-iter)
-              max-iter)
+              :shake-max-tries
+              shake-max-tries
 
-        (setf (getf result :kmax)
-              kmax)
+              :vnd-mode
+              vnd-mode
 
-        (setf (getf result :max-no-improve)
-              max-no-improve)
+              :vnd-max-rounds
+              vnd-max-rounds
 
-        (setf (getf result :shake-max-tries)
-              shake-max-tries)
+              :vnd-max-no-improve
+              vnd-max-no-improve
 
-        ;; VNS no genera cadenas IVNS, por eso estas columnas van en cero.
-        (setf (getf result :generation-max-tries)
-              0)
+              :known-best
+              known-best
 
-        (setf (getf result :generation-tries)
-              (or (getf result :generation-tries)
-                  0))
+              :time-limit-seconds
+              time-limit-seconds)))
 
-        (setf (getf result :vnd-mode)
-              vnd-mode)
+        ;; Normalización para que VNS conserve
+        ;; el mismo esquema de resultados que IVNS.
+        (setf
+         (getf result :algorithm)
+         "vns")
 
-        (setf (getf result :vnd-max-rounds)
-              vnd-max-rounds)
+        (setf
+         (getf result :configuration-label)
+         (or configuration-label
+             criteria-label
+             (getf result
+                   :vns-criteria-label)
+             "vns"))
 
-        (setf (getf result :vnd-max-no-improve)
-              vnd-max-no-improve)
+        (setf
+         (getf result :initial-constructor)
+         constructor)
 
-        (setf (getf result :time-limit-seconds)
-              (or time-limit-seconds
-                  0.0))
+        (setf
+         (getf result :vns-criteria-label)
+         (or criteria-label
 
-        (setf (getf result :invalid-neighbors)
-              (or (getf result :invalid-neighbors)
-                  0))
+             (getf result
+                   :vns-criteria-label)
 
-        (setf (getf result :no-improvement-neighbors)
-              (or (getf result :no-improvement-neighbors)
-                  0))
+             (vrp::vrp-vns-criteria-label
+              criteria)))
 
-        (setf (getf result :timeout-neighbors)
-              (or (getf result :timeout-neighbors)
-                  0))
+        (setf
+         (getf result :vns-criteria-count)
+         (or
+          (getf result
+                :vns-criteria-count)
 
-        ;; Columnas IVNS no aplican para VNS.
-        (setf (getf result :ivns-max-neighborhood-seconds)
-              0.0)
+          (length
+           (vrp::vrp-vns-resolve-criteria
+            criteria))))
 
-        (setf (getf result :reset-generated-strings-on-improvement-p)
-              nil)
+        (setf
+         (getf result :vns-criteria)
+         (or
+          (getf result
+                :vns-criteria)
 
-        (setf (getf result :ivns-candidates-per-iteration)
-              0)
+          (vrp::vrp-vns-resolve-criteria
+           criteria)))
 
-        (setf (getf result :ivns-candidate-selection-mode)
-              "none")
+        (setf
+         (getf result :known-best)
+         known-best)
 
-        (setf (getf result :ivns-exploration-rate)
-              0.0)
+        (setf
+         (getf result :max-iter)
+         max-iter)
 
-        (setf (getf result :ivns-candidates-generated)
-              0)
+        (setf
+         (getf result :kmax)
+         kmax)
 
-        (setf (getf result :ivns-candidates-valid)
-              0)
+        (setf
+         (getf result :max-no-improve)
+         max-no-improve)
 
-        (setf (getf result :ivns-candidates-timeout)
-              0)
+        (setf
+         (getf result :shake-max-tries)
+         shake-max-tries)
 
-        (setf (getf result :ivns-candidates-invalid)
-              0)
+        ;; VNS no genera cadenas gramaticales.
+        (setf
+         (getf result :generation-max-tries)
+         0)
 
-        (setf (getf result :ivns-candidates-no-improvement)
-              0)
+        (setf
+         (getf result :generation-tries)
+         (or
+          (getf result :generation-tries)
+          0))
 
-        (setf (getf result :ivns-candidates-selected)
-              0)
+        (setf
+         (getf result :vnd-mode)
+         vnd-mode)
 
-        (setf (getf result :ivns-candidate-success-rate)
-              0.0)
+        (setf
+         (getf result :vnd-max-rounds)
+         vnd-max-rounds)
 
-        ;; Factibilidad real si existe best-solution.
-        (setf (getf result :feasible)
-              (if (getf result :best-solution)
-                  (experiment-solution-feasible-p
-                   (getf result :best-solution)
-                   real-problem
-                   penalty-factor)
-                  (or (getf result :feasible)
-                      t)))
+        (setf
+         (getf result :vnd-max-no-improve)
+         vnd-max-no-improve)
 
-        (setf (getf result :status)
-              (or (getf result :status)
-                  "ok"))
+        (setf
+         (getf result :time-limit-seconds)
+         (or time-limit-seconds
+             0.0))
 
-        (setf (getf result :error)
-              (or (getf result :error)
-                  ""))
+        (setf
+         (getf result :invalid-neighbors)
+         (or
+          (getf result :invalid-neighbors)
+          0))
+
+        (setf
+         (getf result
+               :no-improvement-neighbors)
+         (or
+          (getf result
+                :no-improvement-neighbors)
+          0))
+
+        (setf
+         (getf result :timeout-neighbors)
+         (or
+          (getf result :timeout-neighbors)
+          0))
+
+        ;; Columnas exclusivas de IVNS.
+        (setf
+         (getf result
+               :ivns-max-neighborhood-seconds)
+         0.0)
+
+        (setf
+         (getf result
+               :reset-generated-strings-on-improvement-p)
+         nil)
+
+        (setf
+         (getf result
+               :ivns-candidates-per-iteration)
+         0)
+
+        (setf
+         (getf result
+               :ivns-candidate-selection-mode)
+         "none")
+
+        (setf
+         (getf result
+               :ivns-exploration-rate)
+         0.0)
+
+        (setf
+         (getf result
+               :ivns-candidates-generated)
+         0)
+
+        (setf
+         (getf result
+               :ivns-candidates-valid)
+         0)
+
+        (setf
+         (getf result
+               :ivns-candidates-timeout)
+         0)
+
+        (setf
+         (getf result
+               :ivns-candidates-invalid)
+         0)
+
+        (setf
+         (getf result
+               :ivns-candidates-no-improvement)
+         0)
+
+        (setf
+         (getf result
+               :ivns-candidates-selected)
+         0)
+
+        (setf
+         (getf result
+               :ivns-candidate-success-rate)
+         0.0)
+
+        (setf
+         (getf result :feasible)
+
+         (if
+             (getf result :best-solution)
+
+             (experiment-solution-feasible-p
+              (getf result :best-solution)
+              real-problem
+              penalty-factor)
+
+             (or
+              (getf result :feasible)
+              t)))
+
+        (setf
+         (getf result :status)
+         (or
+          (getf result :status)
+          "ok"))
+
+        (setf
+         (getf result :error)
+         (or
+          (getf result :error)
+          ""))
 
         result))))
 
@@ -1949,6 +2078,206 @@ experimental utilizada.
 
     :summary-file summary-file
     :trace-file trace-file)))
+
+(defun run-vns-calibration-grid
+       (&key
+          (instances
+           (list
+            vrp::a-n33-k5-problem
+            vrp::a-n65-k9-problem
+            vrp::a-n80-k10-problem))
+
+          (seeds
+           (loop
+             for seed from 1 to 30
+             collect seed))
+
+          (criteria-profiles
+           (list
+            (list
+             :name "basic-3"
+             :criteria :basic)
+
+            (list
+             :name "five-5"
+             :criteria :five)
+
+            (list
+             :name "extended-8"
+             :criteria :extended)))
+
+          (kmax-values
+           '(2 3 5))
+
+          (vnd-modes
+           '(:first :best))
+
+          (constructor
+           :random)
+
+          (max-iter
+           20)
+
+          (max-no-improve
+           10)
+
+          (shake-max-tries
+           5)
+
+          (vnd-max-rounds
+           5)
+
+          (vnd-max-no-improve
+           3)
+
+          (time-limit-seconds
+           300)
+
+          (penalty-factor
+           1000)
+
+          (output-dir
+           "results/pruebas-personales/vns-calibration"))
+
+  "Explora varias configuraciones de VNS.
+
+Cada combinación de criterios, KMAX y modo VND genera un archivo
+summary y un archivo trace independientes."
+
+  (let ((base-dir
+         (string-right-trim
+          "/"
+          output-dir)))
+
+    (ensure-directories-exist
+     (format nil
+             "~a/dummy.tmp"
+             base-dir))
+
+    (dolist
+        (profile criteria-profiles)
+
+      (let ((profile-name
+             (getf profile :name))
+
+            (criteria
+             (getf profile :criteria)))
+
+        (dolist
+            (kmax kmax-values)
+
+          (dolist
+              (vnd-mode vnd-modes)
+
+            (let* ((mode-name
+                    (string-downcase
+                     (symbol-name
+                      vnd-mode)))
+
+                   (configuration-label
+                    (format nil
+                            "~a-k~a-~a"
+                            profile-name
+                            kmax
+                            mode-name))
+
+                   (summary-file
+                    (format nil
+                            "~a/summary-vns-~a.csv"
+                            base-dir
+                            configuration-label))
+
+                   (trace-file
+                    (format nil
+                            "~a/trace-vns-~a.csv"
+                            base-dir
+                            configuration-label)))
+
+              (format
+               t
+               "~%[VNS CALIBRATION] ~a~%"
+               configuration-label)
+
+              (initialize-summary-csv
+               summary-file)
+
+              (initialize-trace-csv
+               trace-file)
+
+              (dolist
+                  (instance instances)
+
+                (dolist
+                    (seed seeds)
+
+                  (let ((result
+                         (run-single-vns-experiment
+                          :problem
+                          instance
+
+                          :seed
+                          seed
+
+                          :constructor
+                          constructor
+
+                          :criteria
+                          criteria
+
+                          :criteria-label
+                          profile-name
+
+                          :configuration-label
+                          configuration-label
+
+                          :max-iter
+                          max-iter
+
+                          :kmax
+                          kmax
+
+                          :max-no-improve
+                          max-no-improve
+
+                          :shake-max-tries
+                          shake-max-tries
+
+                          :vnd-mode
+                          vnd-mode
+
+                          :vnd-max-rounds
+                          vnd-max-rounds
+
+                          :vnd-max-no-improve
+                          vnd-max-no-improve
+
+                          :known-best
+                          (experiment-default-known-best
+                           instance)
+
+                          :time-limit-seconds
+                          time-limit-seconds
+
+                          :penalty-factor
+                          penalty-factor)))
+
+                    (append-summary-result
+                     summary-file
+                     result
+                     instance
+                     seed)
+
+                    (append-trace-result
+                     trace-file
+                     (getf result :trace)
+                     (getf result :algorithm)
+                     instance
+                     seed))))))))))
+
+  (format t
+          "~%VNS calibration grid finished.~%")
+
+  t)
 
 (defun run-official-vns-ivns-comparison
        (&key

@@ -128,9 +128,19 @@ Su propósito principal es facilitar depuración, trazas de ejecución y anális
 (defparameter *vrp-vns-last-selected-delta* nil)
 (defparameter *vrp-vns-last-selection-mode* nil)
 
-(defparameter *vrp-vns-default-criteria* '(rab rarb rarac))
+(defparameter *vrp-vns-criteria-basic*
+  '(rab
+    rarb
+    rarac))
 
-(defparameter *vrp-vns-extended-criteria*
+(defparameter *vrp-vns-criteria-five*
+  '(rab
+    rarb
+    rarac
+    rffe
+    rarbac))
+
+(defparameter *vrp-vns-criteria-extended*
   '(rab
     rarb
     rarac
@@ -139,6 +149,96 @@ Su propósito principal es facilitar depuración, trazas de ejecución y anális
     rbrbff
     roropt
     rchain))
+
+;; Se mantiene el nombre anterior para no romper las funciones existentes.
+(defparameter *vrp-vns-default-criteria*
+  *vrp-vns-criteria-basic*)
+
+;; Se mantiene el nombre anterior por compatibilidad.
+(defparameter *vrp-vns-extended-criteria*
+  *vrp-vns-criteria-extended*)
+
+(defun vrp-vns-resolve-criteria (criteria)
+  "Devuelve la lista concreta de criterios de VNS.
+
+CRITERIA puede ser:
+- :BASIC o :THREE para tres criterios;
+- :FIVE para cinco criterios;
+- :EXTENDED para ocho criterios;
+- una lista explícita de símbolos."
+
+  (cond
+    ((or (null criteria)
+         (eq criteria :basic)
+         (eq criteria :three))
+     (copy-list
+      *vrp-vns-criteria-basic*))
+
+    ((eq criteria :five)
+     (copy-list
+      *vrp-vns-criteria-five*))
+
+    ((eq criteria :extended)
+     (copy-list
+      *vrp-vns-criteria-extended*))
+
+    ((and (listp criteria)
+          criteria
+          (every #'symbolp criteria))
+     (copy-list criteria))
+
+    (t
+     (error
+      "[VRP-VNS] Configuración de criterios no válida: ~a"
+      criteria))))
+
+(defun vrp-vns-criteria-label (criteria)
+  "Devuelve una etiqueta estable para la configuración de criterios."
+
+  (let ((resolved
+         (vrp-vns-resolve-criteria criteria)))
+
+    (cond
+      ((equal resolved
+              *vrp-vns-criteria-basic*)
+       "basic-3")
+
+      ((equal resolved
+              *vrp-vns-criteria-five*)
+       "five-5")
+
+      ((equal resolved
+              *vrp-vns-criteria-extended*)
+       "extended-8")
+
+      (t
+       (format nil
+               "custom-~a"
+               (length resolved))))))
+
+(defun vrp-vns-initialize-seed (seed)
+  "Inicializa el estado aleatorio de forma reproducible."
+
+  (let ((safe-seed
+         (if (and (integerp seed)
+                  (>= seed 0))
+             seed
+             1)))
+
+    #+sbcl
+    (setf *random-state*
+          (sb-ext:seed-random-state
+           safe-seed))
+
+    #-sbcl
+    (progn
+      (setf *random-state*
+            (make-random-state nil))
+
+      (loop repeat safe-seed do
+            (random 1.0)))
+
+    safe-seed))
 
 (defparameter *vrp-vns-debug* nil)
 #+END_SRC
@@ -1523,16 +1623,21 @@ Esta función representa la versión principal utilizada para experimentación c
 
   "Ejecuta VNS en modo experimental.
 
-   Si INITIAL-SOLUTION no es NIL, VNS parte de una copia de esa solución.
-   Esto permite comparar VNS e IVNS desde la misma solución inicial."
-  (when (fboundp 'initialize-seed)
-    (setf *random-state*
-          (make-random-state t))
+Si INITIAL-SOLUTION no es NIL, VNS parte de una copia de esa solución.
 
-    (loop repeat seed do
-          (random 1.0)))
+CRITERIA puede recibir :BASIC, :FIVE, :EXTENDED o una lista explícita."
 
-  (let* ((start-time
+  (vrp-vns-initialize-seed seed)
+
+  (let* ((resolved-criteria
+          (vrp-vns-resolve-criteria
+           criteria))
+
+         (criteria-label
+          (vrp-vns-criteria-label
+           criteria))
+
+         (start-time
           (vns-current-time))
 
          (current
@@ -1541,6 +1646,15 @@ Esta función representa la versión principal utilizada para experimentación c
               (vrp-vns-make-initial-solution
                problem
                constructor)))
+
+         (initial-solution-signature
+          (vrp-vns-solution-signature
+           current))
+
+         (initial-source
+          (if initial-solution
+              "provided"
+              "generated_inside_algorithm"))
 
          (best
           (clone current))
@@ -1558,18 +1672,28 @@ Esta función representa la versión principal utilizada para experimentación c
          (trace '())
          (stop-by-time nil))
 
-    (vrp-vns-print-banner "VNS EXPERIMENTAL")
+    (vrp-vns-print-banner
+     "VNS EXPERIMENTAL")
 
     (loop while
-          (and (< iter max-iter)
-               (< no-improve max-no-improve)
-               (or (null time-limit-seconds)
-                   (< (vns-elapsed-time start-time)
-                      time-limit-seconds)))
+          (and
+           (< iter max-iter)
+
+           (< no-improve
+              max-no-improve)
+
+           (or
+            (null time-limit-seconds)
+
+            (< (vns-elapsed-time
+                start-time)
+               time-limit-seconds)))
+
           do
             (incf iter)
 
-            (let ((accepted-this-iteration nil))
+            (let ((accepted-this-iteration
+                   nil))
 
               (multiple-value-bind
                     (shaken
@@ -1581,13 +1705,14 @@ Esta función representa la versión principal utilizada para experimentación c
                   (vrp-vns-shake
                    :problem problem
                    :solution current
-                   :criteria criteria
+                   :criteria resolved-criteria
                    :k k
                    :constructor constructor
                    :max-tries shake-max-tries
                    :quiet t)
 
-                (declare (ignore shake-criteria))
+                (declare
+                 (ignore shake-criteria))
 
                 (multiple-value-bind
                       (local-opt
@@ -1600,117 +1725,250 @@ Esta función representa la versión principal utilizada para experimentación c
                     (vrp-vns-vnd
                      :problem problem
                      :solution shaken
-                     :criteria criteria
+                     :criteria resolved-criteria
                      :mode vnd-mode
-                     :max-rounds vnd-max-rounds
-                     :max-no-improve vnd-max-no-improve
+                     :max-rounds
+                     vnd-max-rounds
+                     :max-no-improve
+                     vnd-max-no-improve
                      :quiet t)
 
-                  (declare (ignore accepted-moves
-                                   criteria-used))
+                  (declare
+                   (ignore
+                    accepted-moves
+                    criteria-used))
 
                   (let ((delta
                          (vrp-vns-compute-real-delta
                           current
                           local-opt)))
 
-                    (if (and local-opt
-                             (vrp-vns-valid-neighbor-p current local-opt)
-                             (< delta 0))
+                    (if
+                     (and
+                      local-opt
 
-                        (progn
-                          (setf accepted-this-iteration t)
-                          (setf current local-opt)
+                      (vrp-vns-valid-neighbor-p
+                       current
+                       local-opt)
 
-                          (when (< (cost current)
-                                   (cost best))
-                            (setf best
-                                  (clone current))
-                            (setf best-cost
-                                  (cost current)))
+                      (< delta 0))
 
-                          (incf accepted-improvements)
-                          (setf no-improve 0)
-                          (setf k 1))
+                     (progn
+                       (setf accepted-this-iteration
+                             t)
 
-                        (progn
-                          (incf no-improve)
-                          (setf k
-                                (if (< k kmax)
-                                    (1+ k)
-                                    1))))
+                       (setf current
+                             local-opt)
+
+                       (when
+                           (< (cost current)
+                              (cost best))
+
+                         (setf best
+                               (clone current))
+
+                         (setf best-cost
+                               (cost current)))
+
+                       (incf
+                        accepted-improvements)
+
+                       (setf no-improve 0)
+
+                       ;; Cuando existe mejora, k vuelve a 1.
+                       (setf k 1))
+
+                     (progn
+                       (incf no-improve)
+
+                       ;; Cuando no existe mejora, aumenta k.
+                       ;; Al superar KMAX, vuelve a 1.
+                       (setf k
+                             (if (< k kmax)
+                                 (1+ k)
+                                 1))))
 
                     (push
                      (vns-make-trace-row
                       :iter iter
                       :k k
-                      :current-cost (cost current)
-                      :best-cost best-cost
-                      :delta delta
-                      :shake-applied shake-applied
-                      :shake-tries shake-tries
-                      :shake-invalid shake-invalid
-                      :vnd-rounds vnd-rounds
-                      :vnd-improvements vnd-improvements
-                      :neighbors-evaluated neighbors-evaluated
-                      :accepted accepted-this-iteration
-                      :elapsed-time (vns-elapsed-time start-time))
+
+                      :current-cost
+                      (cost current)
+
+                      :best-cost
+                      best-cost
+
+                      :delta
+                      delta
+
+                      :shake-applied
+                      shake-applied
+
+                      :shake-tries
+                      shake-tries
+
+                      :shake-invalid
+                      shake-invalid
+
+                      :vnd-rounds
+                      vnd-rounds
+
+                      :vnd-improvements
+                      vnd-improvements
+
+                      :neighbors-evaluated
+                      neighbors-evaluated
+
+                      :accepted
+                      accepted-this-iteration
+
+                      :elapsed-time
+                      (vns-elapsed-time
+                       start-time))
+
                      trace)
 
-                    (format t
-                            "~%[ITER ~a] cost=~a | best=~a | delta=~a | k=~a | accepted=~a~%"
-                            iter
-                            (cost current)
-                            best-cost
-                            delta
-                            k
-                            accepted-this-iteration)
+                    (format
+                     t
+                     "~%[ITER ~a] cost=~a | best=~a | delta=~a | k=~a | accepted=~a~%"
+                     iter
+                     (cost current)
+                     best-cost
+                     delta
+                     k
+                     accepted-this-iteration)
 
                     (finish-output))))))
 
-    (when (and time-limit-seconds
-               (>= (vns-elapsed-time start-time)
-                   time-limit-seconds))
+    (when
+        (and
+         time-limit-seconds
+
+         (>=
+          (vns-elapsed-time
+           start-time)
+
+          time-limit-seconds))
+
       (setf stop-by-time t))
 
     (let ((total-time
-           (vns-elapsed-time start-time))
+           (vns-elapsed-time
+            start-time))
 
           (gap
            (vns-compute-gap
             best-cost
             known-best)))
 
-      (vrp-vns-print-banner "VNS FINAL")
+      (vrp-vns-print-banner
+       "VNS FINAL")
 
-      (format t "~%Best cost: ~a~%" best-cost)
-      (format t "Iterations: ~a~%" iter)
-      (format t "Accepted improvements: ~a~%"
+      (format t
+              "~%Best cost: ~a~%"
+              best-cost)
+
+      (format t
+              "Iterations: ~a~%"
+              iter)
+
+      (format t
+              "Accepted improvements: ~a~%"
               accepted-improvements)
-      (format t "Time: ~,4f sec~%" total-time)
-      (format t "Gap: ~,4f~%" gap)
+
+      (format t
+              "Time: ~,4f sec~%"
+              total-time)
+
+      (format t
+              "Gap: ~,4f~%"
+              gap)
 
       (list
-       :algorithm :vns
-       :problem problem
-       :seed seed
-       :max-iter max-iter
-       :kmax kmax
-       :max-no-improve max-no-improve
-       :shake-max-tries shake-max-tries
-       :vnd-mode vnd-mode
-       :vnd-max-rounds vnd-max-rounds
-       :vnd-max-no-improve vnd-max-no-improve
-       :time-limit-seconds time-limit-seconds
-       :stop-by-time stop-by-time
-       :initial-cost initial-cost
-       :best-cost best-cost
-       :iterations iter
-       :accepted-improvements accepted-improvements
-       :time total-time
-       :gap gap
-       :trace (reverse trace)
-       :best-solution best))))
+       :algorithm
+       :vns
+
+       :problem
+       problem
+
+       :seed
+       seed
+
+       :configuration-label
+       criteria-label
+
+       :initial-constructor
+       constructor
+
+       :vns-criteria-label
+       criteria-label
+
+       :vns-criteria-count
+       (length resolved-criteria)
+
+       :vns-criteria
+       resolved-criteria
+
+       :max-iter
+       max-iter
+
+       :kmax
+       kmax
+
+       :max-no-improve
+       max-no-improve
+
+       :shake-max-tries
+       shake-max-tries
+
+       :vnd-mode
+       vnd-mode
+
+       :vnd-max-rounds
+       vnd-max-rounds
+
+       :vnd-max-no-improve
+       vnd-max-no-improve
+
+       :time-limit-seconds
+       time-limit-seconds
+
+       :stop-by-time
+       stop-by-time
+
+       :initial-cost
+       initial-cost
+
+       :initial-solution-signature
+       initial-solution-signature
+
+       :initial-solution-shared-p
+       nil
+
+       :initial-solution-source
+       initial-source
+
+       :best-cost
+       best-cost
+
+       :iterations
+       iter
+
+       :accepted-improvements
+       accepted-improvements
+
+       :time
+       total-time
+
+       :gap
+       gap
+
+       :trace
+       (reverse trace)
+
+       :best-solution
+       best))))
 #+END_SRC
 
 
